@@ -4,6 +4,7 @@ OriginData/
 GeneratedExact/
 CSVResult/
 NonExactWorkflow_ToDelete/
+LocalBackup/
 
 # Python caches and local environments
 __pycache__/
