@@ -1,0 +1,19 @@
+# Large/user data and generated outputs
+Backup/
+OriginData/
+GeneratedExact/
+CSVResult/
+NonExactWorkflow_ToDelete/
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local editor/system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

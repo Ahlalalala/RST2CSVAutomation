@@ -1,0 +1,6 @@
+"""Tools for exporting Workbench-compatible acceleration CSV files from RST."""
+
+__all__ = ["__version__"]
+
+__version__ = "0.1.0"
+
