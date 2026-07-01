@@ -58,6 +58,19 @@ $env:PYTHONPATH='src'
 python -m rst2csv.cli validate
 ```
 
+Linux/HPC 远程终端一键提取：
+
+```bash
+export PYTHONPATH=src
+python -m rst2csv.cli hpc-run Void.112.510
+```
+
+HPC 详细步骤见：
+
+```text
+Result/Linux_HPC终端自动提取操作手册.md
+```
+
 输出文件位于：
 
 ```text

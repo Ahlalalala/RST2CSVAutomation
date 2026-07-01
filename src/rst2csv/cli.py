@@ -12,6 +12,7 @@ from .mechdb_cache import (
     export_cached_probe_csvs,
     load_probe_histories_from_mechdb,
 )
+from .hpc_paths import HpcCasePaths
 from .rst_reader import MissingRstReaderDependency, PyMapdlRstReader
 from .validator import validate_case
 
@@ -60,6 +61,14 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--output-root", type=Path, default=config.OUTPUT_ROOT)
     run_parser.set_defaults(func=run_command)
 
+    hpc_parser = subparsers.add_parser(
+        "hpc-run",
+        help="Run exact export on Linux/HPC directory layout and create a case zip package.",
+    )
+    hpc_parser.add_argument("case", help="Case name such as Void.112.510.")
+    hpc_parser.add_argument("--base-dir", type=Path, default=config.HPC_BASE_DIR)
+    hpc_parser.set_defaults(func=hpc_run_command)
+
     check_parser = subparsers.add_parser("check", help="Check optional runtime dependencies.")
     check_parser.set_defaults(func=check_command)
 
@@ -68,15 +77,43 @@ def build_parser() -> argparse.ArgumentParser:
 
 def export_command(args) -> int:
     for case in _cases(args.backup_root, args.cases):
-        reader = PyMapdlRstReader(args.rst_root / f"{case}.rst")
-        histories = load_probe_histories_from_mechdb(
-            _mechdb_path(args.backup_root, case),
-            result_count=len(reader.result_sets),
+        written = _export_exact_case(
+            case=case,
+            rst_path=args.rst_root / f"{case}.rst",
+            mechdb_path=_mechdb_path(args.backup_root, case),
+            output_dir=args.output_root / case,
         )
-        output_dir = args.output_root / case
-        written = export_cached_probe_csvs(histories, reader.result_sets, output_dir)
-        print(f"{case}: exported {len(written)} exact cached files to {output_dir}")
+        print(f"{case}: exported {len(written)} exact cached files to {args.output_root / case}")
     return 0
+
+
+def hpc_run_command(args) -> int:
+    paths = HpcCasePaths.from_base_and_case(args.base_dir, args.case)
+    paths.require_inputs()
+    written = _export_exact_case(
+        case=args.case,
+        rst_path=paths.rst_path,
+        mechdb_path=paths.mechdb_path,
+        output_dir=paths.output_dir,
+    )
+    zip_path = paths.zip_output_dir()
+    print(f"{args.case}: exported {len(written)} exact cached files to {paths.output_dir}")
+    print(f"{args.case}: packaged {zip_path}")
+    return 0
+
+
+def _export_exact_case(
+    case: str,
+    rst_path: Path,
+    mechdb_path: Path,
+    output_dir: Path,
+) -> list[Path]:
+    reader = PyMapdlRstReader(rst_path)
+    histories = load_probe_histories_from_mechdb(
+        mechdb_path,
+        result_count=len(reader.result_sets),
+    )
+    return export_cached_probe_csvs(histories, reader.result_sets, output_dir)
 
 
 def validate_command(args) -> int:

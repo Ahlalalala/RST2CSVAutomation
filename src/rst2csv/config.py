@@ -9,6 +9,7 @@ from pathlib import Path
 BACKUP_ROOT = Path("Backup")
 RST_ROOT = Path("E:/WCL/AnsysTunnel/RSTVoidBatch")
 OUTPUT_ROOT = Path("GeneratedExact")
+HPC_BASE_DIR = Path("/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop")
 
 ORIGIN_DATA_DIR_NAME = "OriginData"
 WORKBENCH_DIR_NAME = "Workbench"
