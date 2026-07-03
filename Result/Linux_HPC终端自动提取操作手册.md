@@ -68,17 +68,121 @@ RST 应放在：
 
 ## 3. 首次部署
 
+### 3.1 上传并解压源码
+
 进入基础路径：
 
 ```bash
 cd /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop
 ```
 
-如果代码已经上传到 `RST2CSVAutomation/`，进入代码目录：
+如果使用本地备份中的源码压缩包：
+
+```text
+RST2CSVAutomation_codex-linux-hpc-workflow_source.zip
+```
+
+应把这个压缩包的内容解压到基础路径下的 `RST2CSVAutomation/` 目录中。推荐命令为：
+
+```bash
+mkdir -p RST2CSVAutomation
+unzip RST2CSVAutomation_codex-linux-hpc-workflow_source.zip -d RST2CSVAutomation
+cd RST2CSVAutomation
+```
+
+解压后，`RST2CSVAutomation/` 里面应直接能看到：
+
+```text
+pyproject.toml
+src/
+scripts/
+Result/
+```
+
+也就是说，代码目录应是：
+
+```bash
+/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVAutomation
+```
+
+不要形成下面这种多套一层的目录：
+
+```text
+RST2CSVAutomation/RST2CSVAutomation_codex-linux-hpc-workflow_source/pyproject.toml
+```
+
+如果已经多套了一层，就进入内层目录运行命令，或把内层文件移动到 `RST2CSVAutomation/` 下。
+
+如果代码已经通过 Git 或其他方式上传到 `RST2CSVAutomation/`，进入代码目录即可：
 
 ```bash
 cd RST2CSVAutomation
 ```
+
+### 3.2 登录节点禁用 Python 时怎么办
+
+如果创建虚拟环境时提示：
+
+```text
+Python3 is disabled on login nodes -m venv .venv
+```
+
+意思是 HPC 不允许在登录节点运行 Python。此时不要在登录节点继续执行 `python3 -m venv .venv`，需要先进入计算节点，或把初始化和提取命令写成作业提交到计算节点。
+
+如果平台支持交互计算节点，先申请一个交互 shell。不同 HPC 的命令可能不同，常见 Slurm 示例为：
+
+```bash
+srun --pty -N 1 -n 1 --mem=8G -t 02:00:00 bash
+```
+
+有些平台使用：
+
+```bash
+salloc -N 1 -n 1 --mem=8G -t 02:00:00
+```
+
+或需要在网页端/平台端点击“交互式作业”“终端”“计算节点 Shell”。进入计算节点后，再执行后面的虚拟环境创建和运行命令。
+
+如果平台不提供交互计算节点，则把命令写成作业脚本提交。以 Slurm 为例，可创建：
+
+```bash
+cat > run_rst2csv.sh <<'EOF'
+#!/bin/bash
+#SBATCH -J rst2csv
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH --mem=8G
+#SBATCH -t 02:00:00
+
+cd /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVAutomation
+
+# 如果平台使用 module 管理 Python，可按实际版本修改或取消下一行注释。
+# module load python/3.10
+
+if [ ! -d .venv ]; then
+  python3 -m venv .venv
+  source .venv/bin/activate
+  python -m pip install --upgrade pip
+  python -m pip install ansys-mapdl-reader h5py
+else
+  source .venv/bin/activate
+fi
+
+export PYTHONPATH=src
+python -m rst2csv.cli check
+python -m rst2csv.cli hpc-run Void.112.510
+EOF
+```
+
+然后提交：
+
+```bash
+sbatch run_rst2csv.sh
+```
+
+如果 HPC 不是 Slurm，请把 `#SBATCH` 和 `sbatch` 换成平台对应的作业系统命令。关键原则不变：Python 环境创建、依赖安装和 CSV 提取都要在允许运行 Python 的计算节点上完成。
+
+### 3.3 创建 Python 环境并安装依赖
 
 建议创建 Python 虚拟环境：
 
@@ -108,6 +212,15 @@ ansys-mapdl-reader: available
 h5py: available
 ```
 
+如果计算节点需要先加载 Python 模块，可在创建虚拟环境前执行类似命令：
+
+```bash
+module avail python
+module load python/3.10
+```
+
+具体模块名称以 HPC 平台显示结果为准。
+
 ## 4. 单个工况自动提取
 
 以 `Void.112.510` 为例：
@@ -118,6 +231,8 @@ source .venv/bin/activate
 export PYTHONPATH=src
 python -m rst2csv.cli hpc-run Void.112.510
 ```
+
+如果登录节点禁用 Python，这几行也应在计算节点交互 shell 中执行，或放入作业脚本中提交执行。
 
 程序会自动：
 
@@ -237,6 +352,8 @@ python -m pip install ansys-mapdl-reader h5py
 ```
 
 如果 HPC 不能联网，需要提前在有网络的机器下载 whl 包，再上传到 HPC 安装。
+
+如果在登录节点执行安装命令时出现 `Python3 is disabled on login nodes`，说明命令位置不对。应先进入计算节点，或把安装命令放到作业脚本中运行。
 
 ### 7.5 输出 zip 没有生成
 
