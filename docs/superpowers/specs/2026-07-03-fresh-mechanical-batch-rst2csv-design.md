@@ -2,22 +2,39 @@
 
 ## 背景
 
-旧的精确工作流依赖 `SYS.mechdb` 中已缓存的 `Face_Accel_Probe_*` 历史。用户指出 fresh `<case>_files` 删除了已生成结果，此时缓存不存在，旧流程会报 `cached histories missing probes`。纯 Python 直接读取 RST 节点并按传感器实体聚合不能稳定复现 Workbench ResultProbe，尤其 `Void.175.575` 与参考 CSV 存在量级差异。
+旧的精确工作流读取 `SYS.mechdb` 中已经缓存的 `Face_Accel_Probe_*` 历史。fresh `<case>_files` 删除了求解后生成数据，因此缓存不存在，旧命令会报 `cached histories missing probes`。
+
+直接用 Python 从 RST 节点结果近似聚合不能稳定复现 Workbench ResultProbe。Mechanical 内部 `SequenceTotalVector(i)` 也只返回显示精度，不适合作为最终 CSV 数据源。
 
 ## 目标
 
-在不手动导入 RST 的前提下，由 HPC 终端自动生成 `FaceAccel_A.CSV` 到 `FaceAccel_G.CSV` 和 `<case>.zip`。精度路线必须沿用 Mechanical 自身的 ResultProbe scoping、插值、`SpatialResolution=Max` 与时间历史导出逻辑，避免非精确近似。
+在不手动打开 Workbench、不手动导入 RST 的前提下，由 HPC 终端自动生成：
+
+- `CSVResult/<case>/FaceAccel_A.CSV` 到 `FaceAccel_G.CSV`
+- `CSVResult/<case>.zip`
+
+精度必须沿用现有已验证的 `SYS.mechdb` double 缓存解析路径。
 
 ## 方案
 
-新增 `mechanical-hpc-run` 命令。命令按照 HPC 目录契约检查 `.dat`、`.rst`、`.wbpj`、`SYS.mechdb`、`ds.dat`、`CAERep.xml`，随后生成 Workbench journal 和 Mechanical Python 脚本。Workbench batch 通过 `runwb2 -B -R run_workbench.wbjn` 打开 fresh 项目，Mechanical 脚本尝试把外部 RST 软链接为分析工作目录下的 `file.rst`，自动评估所有 `Face_Accel_Probe_*`，并逐个 `ExportToTextFile`。
+新增 `mechanical-hpc-run` 命令：
 
-Workbench 退出后，CPython 读取 700 个 probe 文本文件，按 RST 时间步重组为既有 CSV 格式，并使用原有打包逻辑生成 zip。
+1. 检查 `.dat`、`.rst`、`.wbpj`、`SYS.mechdb`、`ds.dat`、`CAERep.xml` 是否按 HPC 目录契约存在。
+2. 生成 Workbench journal 和 Mechanical Python 脚本。
+3. 调用 `runwb2 -B -R run_workbench.wbjn` 打开 fresh 工程。
+4. Mechanical 脚本把外部 RST 软链接为分析工作目录下的 `file.rst`。
+5. Mechanical 调用 `solution.EvaluateAllResults()` 并逐个 `RetrieveResult()`，使 700 个探针历史写入 `SYS.mechdb`。
+6. Workbench 保存工程后，Python 读取更新后的 `SYS.mechdb`，使用原有 `load_probe_histories_from_mechdb` 和 `export_cached_probe_csvs` 生成目标 CSV。
+7. 打包 `<case>.zip`。
 
 ## 边界
 
-本方案要求 HPC 安装或可加载 Ansys Workbench/Mechanical batch 启动器 `runwb2`。如果只有求解器或只有普通 Python，无法精确复现 Workbench ResultProbe。旧 `hpc-run` 保留，但只用于已经有缓存历史的项目。
+该方案要求 HPC 可加载 Ansys Workbench/Mechanical 2025R2 的 `runwb2`。只有 MAPDL 求解器或普通 Python 不足以精确复现 Workbench ResultProbe。
 
-## 验证
+旧命令 `hpc-run` 保留，仅用于已经完成手工导入并缓存探针历史的工程。
 
-本机没有 Ansys Workbench，无法实跑 `runwb2`。已用单元测试覆盖路径契约、journal 生成、`runwb2` 查找、probe 文本解析、CSV 聚合和 CLI 参数。真实精度验证应在 HPC 上完成一次 `mechanical-hpc-run` 后，与手动导出的 `OriginData/<case>/FaceAccel_*.CSV` 比较。
+## 验证重点
+
+- 单元测试覆盖 journal 生成、`runwb2` 查找、RST 链接失败处理、CLI 参数和 HPC 路径契约。
+- 本地 Workbench 2025R2 验证 `Void.85.210` 可由 fresh 工程生成 700 个高精度缓存历史。
+- 端到端输出必须与 `OriginData/Void.85.210/FaceAccel_*.CSV` 进行结构和数值比对。

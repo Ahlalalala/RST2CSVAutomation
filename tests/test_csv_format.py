@@ -43,14 +43,22 @@ class CsvFormatTests(unittest.TestCase):
     def test_format_probe_value_matches_workbench_display_style(self):
         self.assertEqual(format_probe_value(0.0), "0")
         self.assertEqual(format_probe_value(0.0001044), "1.04E-04")
+        self.assertEqual(format_probe_value(0.0003114951775039915), "3.12E-04")
+        self.assertEqual(format_probe_value(6.524951844818996e-05), "6.53E-05")
         self.assertEqual(format_probe_value(0.008324666701642058), "8.32E-03")
         self.assertEqual(format_probe_value(0.0177495018924389), "1.78E-02")
         self.assertEqual(format_probe_value(0.10082), "0.10082")
         self.assertEqual(format_probe_value(1.0052), "1.0052")
         self.assertEqual(format_probe_value(10.7094978564581), "10.709")
 
-    def test_format_time_value_preserves_precision(self):
+    def test_format_time_value_matches_workbench_display_style(self):
         self.assertEqual(format_time_value(2.0001000000000002), "2.0001")
+        self.assertEqual(format_time_value(2.00015), "2.0002")
+        self.assertEqual(format_time_value(2.0025459908770276), "2.0025")
+        self.assertEqual(format_time_value(2.0095545839206324), "2.0096")
+        self.assertEqual(format_time_value(1.9500000000000006), "1.95")
+        self.assertEqual(format_time_value(2.0), "2")
+        self.assertEqual(format_time_value(0.15000000000000002), "0.15")
 
 
 if __name__ == "__main__":

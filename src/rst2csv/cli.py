@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import sys
+import time
 
 from . import config
 from .mechdb_cache import (
@@ -15,7 +16,6 @@ from .mechdb_cache import (
 from .hpc_paths import HpcCasePaths
 from .mechanical_batch import (
     MechanicalBatchConfig,
-    combine_probe_text_exports,
     find_runwb2,
     run_workbench_batch,
     write_mechanical_batch_files,
@@ -94,6 +94,12 @@ def build_parser() -> argparse.ArgumentParser:
     mechanical_hpc_parser.add_argument("--base-dir", type=Path, default=config.HPC_BASE_DIR)
     mechanical_hpc_parser.add_argument("--runwb2", type=Path, default=None, help="Path to Workbench runwb2.")
     mechanical_hpc_parser.add_argument(
+        "--mechanical-timeout-seconds",
+        type=int,
+        default=config.HPC_MECHANICAL_STATUS_TIMEOUT_SECONDS,
+        help="Maximum seconds to wait for Mechanical status after launching Workbench.",
+    )
+    mechanical_hpc_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Only generate Workbench/Mechanical batch scripts; do not run Workbench.",
@@ -166,7 +172,6 @@ def mechanical_hpc_run_command(args) -> int:
         project_path=paths.project_path,
         rst_path=paths.rst_path,
         output_dir=paths.output_dir,
-        probe_text_dir=paths.probe_text_dir,
         status_path=paths.mechanical_status_path,
         mechanical_script_path=paths.mechanical_script_path,
         workbench_system=args.system,
@@ -182,13 +187,19 @@ def mechanical_hpc_run_command(args) -> int:
             print(f"{args.case}: dry run complete; set {config.HPC_RUNWB2_ENV_VAR} or pass --runwb2 before running.")
         return 0
 
-    reader = PyMapdlRstReader(paths.rst_path)
     runwb2_path = find_runwb2(args.runwb2)
+    _remove_stale_status(paths.mechanical_status_path)
     run_workbench_batch(runwb2_path, paths.workbench_journal_path, paths.batch_dir)
+    _wait_for_mechanical_status(paths.mechanical_status_path, args.mechanical_timeout_seconds)
     _require_mechanical_status_ok(paths.mechanical_status_path)
-    written = combine_probe_text_exports(paths.probe_text_dir, reader.result_sets, paths.output_dir)
+    written = _export_exact_case(
+        case=args.case,
+        rst_path=paths.rst_path,
+        mechdb_path=paths.mechdb_path,
+        output_dir=paths.output_dir,
+    )
     zip_path = paths.zip_output_dir()
-    print(f"{args.case}: exported {len(written)} exact Mechanical files to {paths.output_dir}")
+    print(f"{args.case}: exported {len(written)} exact cached Mechanical files to {paths.output_dir}")
     print(f"{args.case}: packaged {zip_path}")
     return 0
 
@@ -214,6 +225,22 @@ def _require_mechanical_status_ok(status_path: Path) -> None:
     first_line = text.splitlines()[0] if text.splitlines() else ""
     if first_line.strip() != "OK":
         raise RuntimeError(f"Mechanical batch failed; see {status_path}: {text[:500]}")
+
+
+def _remove_stale_status(status_path: Path) -> None:
+    try:
+        status_path.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def _wait_for_mechanical_status(status_path: Path, timeout_seconds: int) -> None:
+    deadline = time.monotonic() + max(1, timeout_seconds)
+    while time.monotonic() < deadline:
+        if status_path.exists():
+            return
+        time.sleep(5)
+    raise TimeoutError(f"Mechanical batch did not write status file within {timeout_seconds} seconds: {status_path}")
 
 
 def validate_command(args) -> int:

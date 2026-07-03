@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 FACE_ORDER = ("A", "B", "C", "D", "E", "F", "G")
 
 
@@ -40,12 +42,12 @@ def format_probe_value(value: float) -> str:
     if value == 0:
         return "0"
     if abs(value) < 0.1:
-        if abs(value) >= 0.01:
-            value += 5e-7 if value > 0 else -5e-7
+        display_epsilon = 5e-5 * (10 ** math.floor(math.log10(abs(value))))
+        value += display_epsilon if value > 0 else -display_epsilon
         return f"{value:.2E}"
     return f"{value:.5g}"
 
 
 def format_time_value(value: float) -> str:
-    """Format step time without losing precision."""
-    return f"{value:.15g}"
+    """Format step time like the manual Workbench CSV table display."""
+    return f"{value:.4f}".rstrip("0").rstrip(".")

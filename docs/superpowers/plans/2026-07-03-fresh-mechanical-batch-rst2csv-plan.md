@@ -1,45 +1,60 @@
-# Fresh Mechanical Batch RST2CSV Implementation Plan
+# Fresh Mechanical Batch RST2CSV 实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+**目标：** 支持 fresh Workbench 工程在 HPC 终端自动挂载 RST、生成高精度 `SYS.mechdb` 缓存、导出 `FaceAccel_A.CSV` 到 `FaceAccel_G.CSV` 并打包。
 
-**Goal:** 新增 fresh Workbench 工程的 Mechanical batch 精确导出命令。
+**架构：** Python CLI 负责路径检查、脚本生成、`runwb2` 调用、状态等待、`SYS.mechdb` 高精度解析、CSV 写出和 zip 打包；Workbench/Mechanical 只负责按原工程探针定义评价结果并保存缓存。
 
-**Architecture:** Python CLI 负责路径检查、脚本生成、`runwb2` 调用、probe 文本解析、CSV 聚合和 zip 打包；Workbench/Mechanical batch 负责真正评估 ResultProbe。
+## Task 1: 路径与 CLI
 
-**Tech Stack:** Python `unittest`、Workbench journal、Mechanical Python、现有 `ansys-mapdl-reader` 时间步读取和 CSV 格式化代码。
+涉及文件：
 
----
+- `src/rst2csv/config.py`
+- `src/rst2csv/hpc_paths.py`
+- `src/rst2csv/cli.py`
+- `tests/test_cli_exact.py`
+- `tests/test_hpc_paths.py`
 
-### Task 1: 路径与 CLI
+状态：
 
-**Files:**
-- Modify: `src/rst2csv/config.py`
-- Modify: `src/rst2csv/hpc_paths.py`
-- Modify: `src/rst2csv/cli.py`
-- Test: `tests/test_cli_exact.py`
-- Test: `tests/test_hpc_paths.py`
+- [x] 增加 `RST2CSVFiles`、`CSVResult`、`RST2CSV_RUNWB2`、Workbench component、Mechanical 状态超时等集中配置。
+- [x] 增加 `.wbpj`、batch 目录、状态文件路径。
+- [x] 新增 `mechanical-hpc-run` 命令和 `--mechanical-timeout-seconds` 参数。
+- [x] 删除旧状态文件并等待本次 `mechanical_status.txt`，避免 Workbench 后台执行时误读旧结果。
 
-- [x] 添加 `CSVResult`、`RST2CSV_RUNWB2`、Workbench component 默认配置。
-- [x] 在 HPC 路径对象中加入 `.wbpj`、batch 目录、probe 文本目录和状态文件。
-- [x] 新增 `mechanical-hpc-run` 参数。
+## Task 2: Mechanical Batch
 
-### Task 2: Mechanical Batch 边界
+涉及文件：
 
-**Files:**
-- Create: `src/rst2csv/mechanical_batch.py`
-- Test: `tests/test_mechanical_batch.py`
+- `src/rst2csv/mechanical_batch.py`
+- `tests/test_mechanical_batch.py`
 
-- [x] 写失败测试覆盖 journal 生成、`runwb2` 查找、probe 文本解析、CSV 聚合。
-- [x] 实现 Workbench journal 和 Mechanical Python 脚本生成。
-- [x] 实现 `runwb2 -B -R` 调用与日志保存。
-- [x] 实现 700 个 probe 文本聚合为目标 CSV。
+状态：
 
-### Task 3: HPC 使用文档
+- [x] 生成 Workbench journal。
+- [x] 生成 Mechanical Python 脚本。
+- [x] 脚本稳健创建 `file.rst` 软链接，Windows 尝试 `mklink`，Linux 尝试 `ln -s`。
+- [x] 不再使用低精度 `ExportToTextFile` 或 `SequenceTotalVector`。
+- [x] 调用 `solution.EvaluateAllResults()` 和 `probe.RetrieveResult()` 生成 `SYS.mechdb` 缓存。
+- [x] 缓存为空时写入 `ERROR` 状态并终止。
 
-**Files:**
-- Create: `scripts/rst2csv_mechanical.slurm`
-- Create: `Result/无缓存RST自动提取CSV工作流手册.md`
+## Task 3: HPC 使用文件
 
-- [x] 提供 Slurm 模板，配置集中在文件开头。
-- [x] 说明源码、`RST2CSVFiles`、RST、`.dat` 和输出路径。
-- [x] 说明 `runwb2` 必需性、dry-run、正式提交和常见错误。
+涉及文件：
+
+- `scripts/rst2csv_mechanical.slurm`
+- `Result/无缓存RST自动提取CSV工作流手册.md`
+
+状态：
+
+- [x] Slurm 模板按已实测 HPC 环境加载 `py310`、Intel oneAPI 和 Ansys 2025R2。
+- [x] 模板显式传入 `runwb2` 路径。
+- [x] 手册说明源码上传位置、`RST2CSVFiles`、RST、`.dat`、输出路径、依赖安装、3 个关键文件选择和常见错误。
+
+## Task 4: 验证
+
+状态：
+
+- [x] 用 TDD 覆盖“不得使用低精度文本导出”和“RST 链接失败必须报错”。
+- [x] 运行全部单元测试。
+- [x] 使用本机 Workbench 2025R2 对 `Void.85.210` 做端到端验证。
+- [x] 更新验证报告。

@@ -24,7 +24,6 @@ class HpcCasePaths:
     output_dir: Path
     zip_path: Path
     batch_dir: Path
-    probe_text_dir: Path
     mechanical_script_path: Path
     workbench_journal_path: Path
     mechanical_status_path: Path
@@ -53,7 +52,6 @@ class HpcCasePaths:
             output_dir=base / config.HPC_CSV_RESULT_DIR_NAME / case,
             zip_path=base / config.HPC_CSV_RESULT_DIR_NAME / f"{case}.zip",
             batch_dir=base / config.HPC_CSV_RESULT_DIR_NAME / case / "_mechanical_batch",
-            probe_text_dir=base / config.HPC_CSV_RESULT_DIR_NAME / case / "_mechanical_batch" / "probe_txt",
             mechanical_script_path=(
                 base
                 / config.HPC_CSV_RESULT_DIR_NAME

@@ -5,6 +5,8 @@ GeneratedExact/
 CSVResult/
 NonExactWorkflow_ToDelete/
 LocalBackup/
+LocalWorkbenchVerify/
+LocalWorkbenchVerifyFresh/
 RST2CSVDeps/
 RST2CSVDeps_*.tar.gz
 *.whl

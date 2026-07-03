@@ -20,6 +20,7 @@ class ExactCliTests(unittest.TestCase):
         self.assertEqual(config.HPC_WORKBENCH_COMPONENT, "Model")
         self.assertEqual(config.HPC_DESIGN_POINT, "dp0")
         self.assertEqual(config.HPC_SYSTEM, "SYS")
+        self.assertEqual(config.HPC_MECHANICAL_STATUS_TIMEOUT_SECONDS, 24 * 60 * 60)
         self.assertEqual(config.MECHDB_FILE_NAME, "SYS.mechdb")
 
     def test_cli_only_exposes_exact_workflow_commands(self):
@@ -76,6 +77,8 @@ class ExactCliTests(unittest.TestCase):
                 "/tmp/Desktop",
                 "--runwb2",
                 "/ansys/runwb2",
+                "--mechanical-timeout-seconds",
+                "7200",
                 "--dry-run",
             ]
         )
@@ -83,6 +86,7 @@ class ExactCliTests(unittest.TestCase):
         self.assertEqual(args.case, "Void.112.510")
         self.assertEqual(args.base_dir, Path("/tmp/Desktop"))
         self.assertEqual(args.runwb2, Path("/ansys/runwb2"))
+        self.assertEqual(args.mechanical_timeout_seconds, 7200)
         self.assertTrue(args.dry_run)
 
 
