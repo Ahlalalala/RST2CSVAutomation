@@ -296,7 +296,180 @@ ls -ltr slurm-*.out
 
 如果 HPC 不是 Slurm，请把 `#SBATCH` 和 `sbatch` 换成平台对应的作业系统命令。关键原则不变：Python 环境创建、依赖安装和 CSV 提取都要在允许运行 Python 的计算节点上完成。
 
-### 3.3 创建 Python 环境并在线安装依赖
+### 3.3 使用服务人员配置的 `py310` Conda 环境
+
+如果 HPC 服务人员已经提供 `/opt/phadcloud/lustre/home/phadcloud01z417972/python.slurm`，且其中包含：
+
+```bash
+source /opt/phadcloud/lustre/software/conda/miniforge/etc/profile.d/conda.sh
+conda activate py310
+```
+
+则后续推荐直接使用这个 Slurm 脚本提交 CSV 提取任务。不要把最后一行保留为：
+
+```bash
+python xxx.py >> out.log
+```
+
+应把 `python xxx.py >> out.log` 替换为本项目的依赖检查和 `hpc-run` 命令。
+
+源码中已经提供同内容模板：
+
+```bash
+/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVAutomation/scripts/run_rst2csv_py310.slurm
+```
+
+可以直接复制为服务人员提供的 `python.slurm`：
+
+```bash
+cp /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVAutomation/scripts/run_rst2csv_py310.slurm \
+  /opt/phadcloud/lustre/home/phadcloud01z417972/python.slurm
+```
+
+也可以手动把 `/opt/phadcloud/lustre/home/phadcloud01z417972/python.slurm` 改成下面这样。只需要根据实际工况修改 `CASE`、`DESIGN_POINT`、`SYSTEM` 三个变量：
+
+```bash
+#!/bin/bash
+
+#SBATCH -p AMD_9654
+#SBATCH -J RST2CSV
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH -c 32
+#SBATCH -o rst2csv_%j.out
+#SBATCH -e rst2csv_%j.err
+#SBATCH --no-requeue
+
+set -euo pipefail
+
+source /opt/phadcloud/lustre/software/conda/miniforge/etc/profile.d/conda.sh
+conda activate py310
+
+BASE=/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop
+CASE=Void.112.510
+DESIGN_POINT=dp0
+SYSTEM=SYS
+
+CODE_DIR="$BASE/RST2CSVAutomation"
+DEPS_DIR="$BASE/RST2CSVDeps/python"
+WHEELHOUSE="$BASE/RST2CSVDeps/wheelhouse"
+
+cd "$CODE_DIR"
+
+echo "Python executable: $(which python)"
+python --version
+
+mkdir -p "$DEPS_DIR"
+
+if ! PYTHONPATH="$CODE_DIR/src:$DEPS_DIR" python -m rst2csv.cli check; then
+  if [ -d "$WHEELHOUSE" ]; then
+    python -m pip install --upgrade --target "$DEPS_DIR" --no-index --find-links "$WHEELHOUSE" -r requirements-hpc.txt
+  else
+    python -m pip install --upgrade --target "$DEPS_DIR" -r requirements-hpc.txt
+  fi
+fi
+
+export PYTHONPATH="$CODE_DIR/src:$DEPS_DIR"
+python -m rst2csv.cli check
+python -m rst2csv.cli hpc-run "$CASE" --base-dir "$BASE" --design-point "$DESIGN_POINT" --system "$SYSTEM"
+```
+
+这段脚本做了几件事：
+
+1. 通过 Slurm 申请计算节点；
+2. 激活服务人员配置好的 `py310`；
+3. 进入源码目录 `Desktop/RST2CSVAutomation`；
+4. 把依赖安装到用户目录 `Desktop/RST2CSVDeps/python`，不修改共享 conda 环境；
+5. 设置 `PYTHONPATH`；
+6. 执行 `hpc-run`，生成 CSV 文件夹和 zip 压缩包。
+
+如果已经按第 3.5 节提前上传了离线 wheel 文件到 `Desktop/RST2CSVDeps/wheelhouse/`，脚本会自动优先从本地 wheel 文件安装依赖；如果没有这个目录，脚本会尝试联网安装。
+
+提交前建议先确认关键文件都在：
+
+```bash
+BASE=/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop
+CASE=Void.112.510
+ls "$BASE/RST2CSVAutomation/requirements-hpc.txt"
+ls "$BASE/TaskDir_${CASE}/${CASE}.rst"
+ls "$BASE/RST2CSVFiles/${CASE}_files"
+```
+
+提交作业：
+
+```bash
+cd /opt/phadcloud/lustre/home/phadcloud01z417972
+sbatch python.slurm
+```
+
+提交成功后通常会显示：
+
+```text
+Submitted batch job 123456
+```
+
+查看排队或运行状态：
+
+```bash
+squeue -u "$USER"
+```
+
+查看日志：
+
+```bash
+ls -ltr rst2csv_*.out rst2csv_*.err
+tail -n 80 rst2csv_123456.out
+tail -n 80 rst2csv_123456.err
+```
+
+其中 `123456` 换成实际作业号。
+
+作业成功后，应看到：
+
+```text
+Void.112.510: exported 7 exact cached files to /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/CSVResult/Void.112.510
+Void.112.510: packaged /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/CSVResult/Void.112.510.zip
+```
+
+输出位置为：
+
+```bash
+/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/CSVResult/Void.112.510/
+/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/CSVResult/Void.112.510.zip
+```
+
+如果要跑其他工况，只改脚本里的：
+
+```bash
+CASE=Void.112.510
+```
+
+如果第 2.4 节确认目标不是默认 `dp0/SYS`，再改：
+
+```bash
+DESIGN_POINT=dp0
+SYSTEM=SYS
+```
+
+例如：
+
+```bash
+DESIGN_POINT=dp1
+SYSTEM=SYS-1
+```
+
+如果要一次跑多个工况，可把最后一行替换为循环：
+
+```bash
+for CASE in Void.112.510 Void.85.210 Void.175.575
+do
+  python -m rst2csv.cli hpc-run "$CASE" --base-dir "$BASE" --design-point "$DESIGN_POINT" --system "$SYSTEM"
+done
+```
+
+注意：如果不同工况对应不同的 `DESIGN_POINT` 或 `SYSTEM`，不要用同一个循环硬跑，应分别提交或写成逐项配置。
+
+### 3.4 创建 Python 环境并在线安装依赖
 
 建议创建 Python 虚拟环境：
 
@@ -335,7 +508,7 @@ module load python/3.10
 
 具体模块名称以 HPC 平台显示结果为准。
 
-### 3.4 上传离线依赖文件到固定位置
+### 3.5 上传离线依赖文件到固定位置
 
 如果 HPC 不能联网，或 `pip install ansys-mapdl-reader h5py` 一直失败，可以把依赖先下载成文件，再上传到固定位置。推荐固定位置为：
 
@@ -540,7 +713,7 @@ CAERep.xml
 python -m pip install -r requirements-hpc.txt
 ```
 
-如果 HPC 不能联网，需要按第 3.4 节提前准备 `RST2CSVDeps/wheelhouse` 或 `RST2CSVDeps/python`，再上传到 HPC 使用。
+如果 HPC 不能联网，需要按第 3.5 节提前准备 `RST2CSVDeps/wheelhouse` 或 `RST2CSVDeps/python`，再上传到 HPC 使用。
 
 如果在登录节点执行安装命令时出现 `Python3 is disabled on login nodes`，说明命令位置不对。应先进入计算节点，或把安装命令放到作业脚本中运行。
 
