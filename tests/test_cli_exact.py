@@ -15,6 +15,9 @@ class ExactCliTests(unittest.TestCase):
             Path("/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop"),
         )
         self.assertEqual(config.HPC_WORKBENCH_FILES_DIR_NAME, "RST2CSVFiles")
+        self.assertEqual(config.HPC_CSV_RESULT_DIR_NAME, "CSVResult")
+        self.assertEqual(config.HPC_RUNWB2_ENV_VAR, "RST2CSV_RUNWB2")
+        self.assertEqual(config.HPC_WORKBENCH_COMPONENT, "Model")
         self.assertEqual(config.HPC_DESIGN_POINT, "dp0")
         self.assertEqual(config.HPC_SYSTEM, "SYS")
         self.assertEqual(config.MECHDB_FILE_NAME, "SYS.mechdb")
@@ -23,7 +26,10 @@ class ExactCliTests(unittest.TestCase):
         parser = build_parser()
         subparsers_action = next(action for action in parser._actions if action.dest == "command")
 
-        self.assertEqual(set(subparsers_action.choices), {"check", "export", "validate", "run", "hpc-run"})
+        self.assertEqual(
+            set(subparsers_action.choices),
+            {"check", "export", "validate", "run", "hpc-run", "mechanical-hpc-run"},
+        )
 
     def test_export_defaults_to_exact_output_root(self):
         parser = build_parser()
@@ -59,6 +65,25 @@ class ExactCliTests(unittest.TestCase):
 
         self.assertEqual(args.design_point, "dp1")
         self.assertEqual(args.system, "SYS-1")
+
+    def test_mechanical_hpc_run_accepts_dry_run_and_runwb2_override(self):
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "mechanical-hpc-run",
+                "Void.112.510",
+                "--base-dir",
+                "/tmp/Desktop",
+                "--runwb2",
+                "/ansys/runwb2",
+                "--dry-run",
+            ]
+        )
+
+        self.assertEqual(args.case, "Void.112.510")
+        self.assertEqual(args.base_dir, Path("/tmp/Desktop"))
+        self.assertEqual(args.runwb2, Path("/ansys/runwb2"))
+        self.assertTrue(args.dry_run)
 
 
 if __name__ == "__main__":

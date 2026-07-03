@@ -20,8 +20,14 @@ class HpcCasePaths:
     mechdb_path: Path
     dsdat_path: Path
     caerep_path: Path
+    project_path: Path
     output_dir: Path
     zip_path: Path
+    batch_dir: Path
+    probe_text_dir: Path
+    mechanical_script_path: Path
+    workbench_journal_path: Path
+    mechanical_status_path: Path
 
     @classmethod
     def from_base_and_case(
@@ -43,8 +49,32 @@ class HpcCasePaths:
             mechdb_path=files_root / design_point / "global" / "MECH" / f"{system}.mechdb",
             dsdat_path=files_root / design_point / system / "MECH" / "ds.dat",
             caerep_path=files_root / design_point / system / "MECH" / "CAERep.xml",
-            output_dir=base / "CSVResult" / case,
-            zip_path=base / "CSVResult" / f"{case}.zip",
+            project_path=base / config.HPC_WORKBENCH_FILES_DIR_NAME / f"{case}.wbpj",
+            output_dir=base / config.HPC_CSV_RESULT_DIR_NAME / case,
+            zip_path=base / config.HPC_CSV_RESULT_DIR_NAME / f"{case}.zip",
+            batch_dir=base / config.HPC_CSV_RESULT_DIR_NAME / case / "_mechanical_batch",
+            probe_text_dir=base / config.HPC_CSV_RESULT_DIR_NAME / case / "_mechanical_batch" / "probe_txt",
+            mechanical_script_path=(
+                base
+                / config.HPC_CSV_RESULT_DIR_NAME
+                / case
+                / "_mechanical_batch"
+                / "export_probes_mechanical.py"
+            ),
+            workbench_journal_path=(
+                base
+                / config.HPC_CSV_RESULT_DIR_NAME
+                / case
+                / "_mechanical_batch"
+                / "run_workbench.wbjn"
+            ),
+            mechanical_status_path=(
+                base
+                / config.HPC_CSV_RESULT_DIR_NAME
+                / case
+                / "_mechanical_batch"
+                / "mechanical_status.txt"
+            ),
         )
 
     def missing_inputs(self) -> list[Path]:
@@ -54,6 +84,7 @@ class HpcCasePaths:
             self.mechdb_path,
             self.dsdat_path,
             self.caerep_path,
+            self.project_path,
         ]
         return [path for path in required if not path.exists()]
 

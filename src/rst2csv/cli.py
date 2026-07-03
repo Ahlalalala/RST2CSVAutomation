@@ -13,6 +13,13 @@ from .mechdb_cache import (
     load_probe_histories_from_mechdb,
 )
 from .hpc_paths import HpcCasePaths
+from .mechanical_batch import (
+    MechanicalBatchConfig,
+    combine_probe_text_exports,
+    find_runwb2,
+    run_workbench_batch,
+    write_mechanical_batch_files,
+)
 from .rst_reader import MissingRstReaderDependency, PyMapdlRstReader
 from .validator import validate_case
 
@@ -79,6 +86,35 @@ def build_parser() -> argparse.ArgumentParser:
     )
     hpc_parser.set_defaults(func=hpc_run_command)
 
+    mechanical_hpc_parser = subparsers.add_parser(
+        "mechanical-hpc-run",
+        help="Run fresh-project exact export through Workbench/Mechanical batch, then create a case zip package.",
+    )
+    mechanical_hpc_parser.add_argument("case", help="Case name such as Void.112.510.")
+    mechanical_hpc_parser.add_argument("--base-dir", type=Path, default=config.HPC_BASE_DIR)
+    mechanical_hpc_parser.add_argument("--runwb2", type=Path, default=None, help="Path to Workbench runwb2.")
+    mechanical_hpc_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Only generate Workbench/Mechanical batch scripts; do not run Workbench.",
+    )
+    mechanical_hpc_parser.add_argument(
+        "--design-point",
+        default=config.HPC_DESIGN_POINT,
+        help="Workbench design point directory, default: dp0.",
+    )
+    mechanical_hpc_parser.add_argument(
+        "--system",
+        default=config.HPC_SYSTEM,
+        help="Workbench system directory/name, default: SYS.",
+    )
+    mechanical_hpc_parser.add_argument(
+        "--component",
+        default=config.HPC_WORKBENCH_COMPONENT,
+        help="Workbench Mechanical container, default: Setup.",
+    )
+    mechanical_hpc_parser.set_defaults(func=mechanical_hpc_run_command)
+
     check_parser = subparsers.add_parser("check", help="Check optional runtime dependencies.")
     check_parser.set_defaults(func=check_command)
 
@@ -117,6 +153,46 @@ def hpc_run_command(args) -> int:
     return 0
 
 
+def mechanical_hpc_run_command(args) -> int:
+    paths = HpcCasePaths.from_base_and_case(
+        args.base_dir,
+        args.case,
+        design_point=args.design_point,
+        system=args.system,
+    )
+    paths.require_inputs()
+    batch_config = MechanicalBatchConfig(
+        case=args.case,
+        project_path=paths.project_path,
+        rst_path=paths.rst_path,
+        output_dir=paths.output_dir,
+        probe_text_dir=paths.probe_text_dir,
+        status_path=paths.mechanical_status_path,
+        mechanical_script_path=paths.mechanical_script_path,
+        workbench_system=args.system,
+        workbench_component=args.component,
+    )
+    write_mechanical_batch_files(batch_config, paths.workbench_journal_path)
+    print(f"{args.case}: generated Workbench journal: {paths.workbench_journal_path}")
+    print(f"{args.case}: generated Mechanical script: {paths.mechanical_script_path}")
+    if args.dry_run:
+        if args.runwb2:
+            print(f"{args.case}: dry run command: {args.runwb2} -B -R {paths.workbench_journal_path}")
+        else:
+            print(f"{args.case}: dry run complete; set {config.HPC_RUNWB2_ENV_VAR} or pass --runwb2 before running.")
+        return 0
+
+    reader = PyMapdlRstReader(paths.rst_path)
+    runwb2_path = find_runwb2(args.runwb2)
+    run_workbench_batch(runwb2_path, paths.workbench_journal_path, paths.batch_dir)
+    _require_mechanical_status_ok(paths.mechanical_status_path)
+    written = combine_probe_text_exports(paths.probe_text_dir, reader.result_sets, paths.output_dir)
+    zip_path = paths.zip_output_dir()
+    print(f"{args.case}: exported {len(written)} exact Mechanical files to {paths.output_dir}")
+    print(f"{args.case}: packaged {zip_path}")
+    return 0
+
+
 def _export_exact_case(
     case: str,
     rst_path: Path,
@@ -129,6 +205,15 @@ def _export_exact_case(
         result_count=len(reader.result_sets),
     )
     return export_cached_probe_csvs(histories, reader.result_sets, output_dir)
+
+
+def _require_mechanical_status_ok(status_path: Path) -> None:
+    if not status_path.exists():
+        raise RuntimeError(f"Mechanical batch did not write status file: {status_path}")
+    text = status_path.read_text(encoding="utf-8", errors="replace")
+    first_line = text.splitlines()[0] if text.splitlines() else ""
+    if first_line.strip() != "OK":
+        raise RuntimeError(f"Mechanical batch failed; see {status_path}: {text[:500]}")
 
 
 def validate_command(args) -> int:

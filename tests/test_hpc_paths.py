@@ -18,6 +18,7 @@ class HpcPathsTests(unittest.TestCase):
         )
         self.assertEqual(paths.dsdat_path, Path("/base/RST2CSVFiles/Void.112.510_files/dp0/SYS/MECH/ds.dat"))
         self.assertEqual(paths.caerep_path, Path("/base/RST2CSVFiles/Void.112.510_files/dp0/SYS/MECH/CAERep.xml"))
+        self.assertEqual(paths.project_path, Path("/base/RST2CSVFiles/Void.112.510.wbpj"))
         self.assertEqual(paths.output_dir, Path("/base/CSVResult/Void.112.510"))
         self.assertEqual(paths.zip_path, Path("/base/CSVResult/Void.112.510.zip"))
 
@@ -51,6 +52,7 @@ class HpcPathsTests(unittest.TestCase):
                 paths.mechdb_path,
                 paths.dsdat_path,
                 paths.caerep_path,
+                paths.project_path,
             ],
         )
 
