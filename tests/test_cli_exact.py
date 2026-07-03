@@ -14,6 +14,7 @@ class ExactCliTests(unittest.TestCase):
             config.HPC_BASE_DIR,
             Path("/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop"),
         )
+        self.assertEqual(config.HPC_WORKBENCH_FILES_DIR_NAME, "RST2CSVFiles")
         self.assertEqual(config.MECHDB_FILE_NAME, "SYS.mechdb")
 
     def test_cli_only_exposes_exact_workflow_commands(self):

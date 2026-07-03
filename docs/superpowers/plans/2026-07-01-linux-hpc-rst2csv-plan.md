@@ -25,9 +25,9 @@ def test_hpc_case_paths_follow_remote_directory_contract():
     paths = HpcCasePaths.from_base_and_case(Path("/base"), "Void.112.510")
     assert paths.dat_path == Path("/base/Void.112.510.dat")
     assert paths.rst_path == Path("/base/TaskDir_Void.112.510/Void.112.510.rst")
-    assert paths.mechdb_path == Path("/base/RST2CSV/Void.112.510_files/dp0/global/MECH/SYS.mechdb")
-    assert paths.dsdat_path == Path("/base/RST2CSV/Void.112.510_files/dp0/SYS/MECH/ds.dat")
-    assert paths.caerep_path == Path("/base/RST2CSV/Void.112.510_files/dp0/SYS/MECH/CAERep.xml")
+    assert paths.mechdb_path == Path("/base/RST2CSVFiles/Void.112.510_files/dp0/global/MECH/SYS.mechdb")
+    assert paths.dsdat_path == Path("/base/RST2CSVFiles/Void.112.510_files/dp0/SYS/MECH/ds.dat")
+    assert paths.caerep_path == Path("/base/RST2CSVFiles/Void.112.510_files/dp0/SYS/MECH/CAERep.xml")
     assert paths.output_dir == Path("/base/CSVResult/Void.112.510")
     assert paths.zip_path == Path("/base/CSVResult/Void.112.510.zip")
 ```
@@ -104,7 +104,7 @@ hpc-run <case> [--base-dir PATH]
 手册必须包含：
 
 - 上传目录结构；
-- 如何确认 `Void.112.510_files` 放在基础路径的 `RST2CSV/` 下；
+- 如何确认 `Void.112.510_files` 放在基础路径的 `RST2CSVFiles/` 下；
 - 如何安装依赖；
 - 如何运行 `hpc-run`；
 - 如何下载 `CSVResult/Void.112.510.zip`；

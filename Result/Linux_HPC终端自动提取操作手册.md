@@ -46,18 +46,18 @@ RST 应放在：
 
 ### 2.3 Workbench 工程文件
 
-把包含 `dp0` 的 Workbench 工程目录上传到基础路径下的 `RST2CSV/`：
+把包含 `dp0` 的 Workbench 工程目录上传到基础路径下的 `RST2CSVFiles/`：
 
 ```bash
-/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSV/Void.112.510_files/
+/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVFiles/Void.112.510_files/
 ```
 
 程序会自动读取：
 
 ```bash
-/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSV/Void.112.510_files/dp0/global/MECH/SYS.mechdb
-/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSV/Void.112.510_files/dp0/SYS/MECH/ds.dat
-/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSV/Void.112.510_files/dp0/SYS/MECH/CAERep.xml
+/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVFiles/Void.112.510_files/dp0/global/MECH/SYS.mechdb
+/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVFiles/Void.112.510_files/dp0/SYS/MECH/ds.dat
+/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVFiles/Void.112.510_files/dp0/SYS/MECH/CAERep.xml
 ```
 
 其中：
@@ -94,6 +94,7 @@ cd RST2CSVAutomation
 
 ```text
 pyproject.toml
+requirements-hpc.txt
 src/
 scripts/
 Result/
@@ -163,7 +164,12 @@ if [ ! -d .venv ]; then
   python3 -m venv .venv
   source .venv/bin/activate
   python -m pip install --upgrade pip
-  python -m pip install ansys-mapdl-reader h5py
+  WHEELHOUSE=/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVDeps/wheelhouse
+  if [ -d "$WHEELHOUSE" ]; then
+    python -m pip install --no-index --find-links "$WHEELHOUSE" -r requirements-hpc.txt
+  else
+    python -m pip install -r requirements-hpc.txt
+  fi
 else
   source .venv/bin/activate
 fi
@@ -180,9 +186,31 @@ EOF
 sbatch run_rst2csv.sh
 ```
 
+注意：不要用下面这种方式提交 Slurm 作业：
+
+```bash
+bash run_rst2csv.sh
+```
+
+`bash run_rst2csv.sh` 只是把脚本当普通 shell 脚本在当前节点执行，`#SBATCH` 行会被当作注释，不会申请计算节点；如果当前是登录节点，就仍然会遇到 `Python3 is disabled on login nodes`。Slurm 作业必须用 `sbatch run_rst2csv.sh` 提交。正常情况下，提交后会看到类似输出：
+
+```text
+Submitted batch job 123456
+```
+
+如果提交后没有任何反应，先检查：
+
+```bash
+which sbatch
+squeue -u "$USER"
+ls -ltr slurm-*.out
+```
+
+如果 `which sbatch` 找不到命令，说明当前平台终端没有直接暴露 Slurm，需要使用平台网页端或管理员提供的作业提交方式。
+
 如果 HPC 不是 Slurm，请把 `#SBATCH` 和 `sbatch` 换成平台对应的作业系统命令。关键原则不变：Python 环境创建、依赖安装和 CSV 提取都要在允许运行 Python 的计算节点上完成。
 
-### 3.3 创建 Python 环境并安装依赖
+### 3.3 创建 Python 环境并在线安装依赖
 
 建议创建 Python 虚拟环境：
 
@@ -195,7 +223,7 @@ source .venv/bin/activate
 
 ```bash
 python -m pip install --upgrade pip
-python -m pip install ansys-mapdl-reader h5py
+python -m pip install -r requirements-hpc.txt
 ```
 
 检查依赖：
@@ -221,6 +249,75 @@ module load python/3.10
 
 具体模块名称以 HPC 平台显示结果为准。
 
+### 3.4 上传离线依赖文件到固定位置
+
+如果 HPC 不能联网，或 `pip install ansys-mapdl-reader h5py` 一直失败，可以把依赖先下载成文件，再上传到固定位置。推荐固定位置为：
+
+```bash
+/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVDeps/
+```
+
+注意：依赖中包含 `h5py` 这类带 Linux 二进制扩展的包，不能从 Windows 的 Python 环境直接复制。离线依赖应在 Linux x86_64、且 Python 主版本/次版本与 HPC 一致的环境中准备，例如 HPC 计算节点、同版本 Linux 服务器或同版本 Linux 容器。
+
+方案 A：上传 wheelhouse，然后在计算节点离线安装到 `.venv`。在有网络且平台匹配的 Linux 环境中执行：
+
+```bash
+cd /path/to/RST2CSVAutomation
+mkdir -p RST2CSVDeps/wheelhouse
+python -m pip download -r requirements-hpc.txt -d RST2CSVDeps/wheelhouse
+tar -czf RST2CSVDeps_wheelhouse.tar.gz RST2CSVDeps/wheelhouse
+```
+
+把 `RST2CSVDeps_wheelhouse.tar.gz` 上传到 HPC 基础路径并解压：
+
+```bash
+cd /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop
+tar -xzf RST2CSVDeps_wheelhouse.tar.gz
+```
+
+解压后应得到：
+
+```bash
+/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVDeps/wheelhouse/
+```
+
+进入计算节点后，用本地 wheel 文件安装：
+
+```bash
+cd /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVAutomation
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install --no-index --find-links /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVDeps/wheelhouse -r requirements-hpc.txt
+```
+
+方案 B：直接上传已安装好的依赖目录，不创建 `.venv`。在平台匹配的 Linux 环境中执行：
+
+```bash
+cd /path/to/RST2CSVAutomation
+mkdir -p RST2CSVDeps/python
+python -m pip install --target RST2CSVDeps/python -r requirements-hpc.txt
+tar -czf RST2CSVDeps_python.tar.gz RST2CSVDeps/python
+```
+
+把 `RST2CSVDeps_python.tar.gz` 上传到 HPC 基础路径并解压：
+
+```bash
+cd /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop
+tar -xzf RST2CSVDeps_python.tar.gz
+```
+
+运行时不激活 `.venv`，改用：
+
+```bash
+cd /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVAutomation
+export PYTHONPATH=/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVAutomation/src:/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVDeps/python
+python3 -m rst2csv.cli check
+python3 -m rst2csv.cli hpc-run Void.112.510
+```
+
+方案 B 可以减少在 HPC 上安装依赖的步骤，但仍然必须在允许运行 Python 的计算节点执行 `python3 -m rst2csv.cli ...`。如果登录节点禁用 Python，仅上传依赖文件不能绕过这个限制。
+
 ## 4. 单个工况自动提取
 
 以 `Void.112.510` 为例：
@@ -237,7 +334,7 @@ python -m rst2csv.cli hpc-run Void.112.510
 程序会自动：
 
 1. 读取 `/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/TaskDir_Void.112.510/Void.112.510.rst`；
-2. 读取 `/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSV/Void.112.510_files/dp0/global/MECH/SYS.mechdb`；
+2. 读取 `/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVFiles/Void.112.510_files/dp0/global/MECH/SYS.mechdb`；
 3. 创建输出目录；
 4. 写出 7 个 CSV；
 5. 创建 zip 压缩包。
@@ -305,13 +402,13 @@ Void.112.510.rst
 错误示例：
 
 ```text
-ERROR: missing file: /.../RST2CSV/Void.112.510_files/dp0/global/MECH/SYS.mechdb
+ERROR: missing file: /.../RST2CSVFiles/Void.112.510_files/dp0/global/MECH/SYS.mechdb
 ```
 
 说明上传的 Workbench 工程目录不完整，或目录层级放错。应检查：
 
 ```bash
-ls /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSV/Void.112.510_files/dp0/global/MECH/
+ls /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVFiles/Void.112.510_files/dp0/global/MECH/
 ```
 
 必须能看到：
@@ -333,7 +430,7 @@ Void.112.510_files/dp0/SYS/MECH/
 检查：
 
 ```bash
-ls /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSV/Void.112.510_files/dp0/SYS/MECH/
+ls /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVFiles/Void.112.510_files/dp0/SYS/MECH/
 ```
 
 必须能看到：
@@ -348,10 +445,10 @@ CAERep.xml
 如果 `check` 显示缺少依赖，重新安装：
 
 ```bash
-python -m pip install ansys-mapdl-reader h5py
+python -m pip install -r requirements-hpc.txt
 ```
 
-如果 HPC 不能联网，需要提前在有网络的机器下载 whl 包，再上传到 HPC 安装。
+如果 HPC 不能联网，需要按第 3.4 节提前准备 `RST2CSVDeps/wheelhouse` 或 `RST2CSVDeps/python`，再上传到 HPC 使用。
 
 如果在登录节点执行安装命令时出现 `Python3 is disabled on login nodes`，说明命令位置不对。应先进入计算节点，或把安装命令放到作业脚本中运行。
 

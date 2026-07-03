@@ -19,7 +19,7 @@
 ├── Void.112.510.dat
 ├── TaskDir_Void.112.510/
 │   └── Void.112.510.rst
-├── RST2CSV/
+├── RST2CSVFiles/
 │   └── Void.112.510_files/
 │       └── dp0/
 │           ├── global/MECH/SYS.mechdb
@@ -68,7 +68,7 @@ python -m rst2csv.cli hpc-run Void.112.510 --base-dir /path/to/Desktop
 如果缺少必需文件，命令应明确指出缺失路径，例如：
 
 ```text
-ERROR: missing file: /.../RST2CSV/Void.112.510_files/dp0/global/MECH/SYS.mechdb
+ERROR: missing file: /.../RST2CSVFiles/Void.112.510_files/dp0/global/MECH/SYS.mechdb
 ```
 
 如果 `CSVResult/<case>.zip` 已存在，重新运行时覆盖压缩包。
@@ -84,6 +84,6 @@ ERROR: missing file: /.../RST2CSV/Void.112.510_files/dp0/global/MECH/SYS.mechdb
 
 本地模拟验证：
 
-- 用临时目录构造 `TaskDir_<case>`、`RST2CSV/<case>_files` 和 `CSVResult`；
+- 用临时目录构造 `TaskDir_<case>`、`RST2CSVFiles/<case>_files` 和 `CSVResult`；
 - 由于真实 `.rst`/`.mechdb` 较大，单元测试不读取真实文件，只验证路径和打包行为；
 - 真实数据验证仍用已有三工况 Windows/本地路径运行 `python -m rst2csv.cli run`，确认原工作流未被破坏。

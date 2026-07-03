@@ -5,6 +5,9 @@ GeneratedExact/
 CSVResult/
 NonExactWorkflow_ToDelete/
 LocalBackup/
+RST2CSVDeps/
+RST2CSVDeps_*.tar.gz
+*.whl
 
 # Python caches and local environments
 __pycache__/

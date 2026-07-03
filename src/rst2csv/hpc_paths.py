@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
+from . import config
+
 
 @dataclass(frozen=True)
 class HpcCasePaths:
@@ -22,7 +24,7 @@ class HpcCasePaths:
     @classmethod
     def from_base_and_case(cls, base_dir: str | Path, case: str) -> "HpcCasePaths":
         base = Path(base_dir)
-        files_root = base / "RST2CSV" / f"{case}_files"
+        files_root = base / config.HPC_WORKBENCH_FILES_DIR_NAME / f"{case}_files"
         return cls(
             case=case,
             base_dir=base,
