@@ -67,6 +67,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     hpc_parser.add_argument("case", help="Case name such as Void.112.510.")
     hpc_parser.add_argument("--base-dir", type=Path, default=config.HPC_BASE_DIR)
+    hpc_parser.add_argument(
+        "--design-point",
+        default=config.HPC_DESIGN_POINT,
+        help="Workbench design point directory, default: dp0.",
+    )
+    hpc_parser.add_argument(
+        "--system",
+        default=config.HPC_SYSTEM,
+        help="Workbench system directory/name, default: SYS.",
+    )
     hpc_parser.set_defaults(func=hpc_run_command)
 
     check_parser = subparsers.add_parser("check", help="Check optional runtime dependencies.")
@@ -88,7 +98,12 @@ def export_command(args) -> int:
 
 
 def hpc_run_command(args) -> int:
-    paths = HpcCasePaths.from_base_and_case(args.base_dir, args.case)
+    paths = HpcCasePaths.from_base_and_case(
+        args.base_dir,
+        args.case,
+        design_point=args.design_point,
+        system=args.system,
+    )
     paths.require_inputs()
     written = _export_exact_case(
         case=args.case,

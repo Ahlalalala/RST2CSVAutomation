@@ -66,6 +66,92 @@ RST 应放在：
 - `ds.dat`：留档和核查用；
 - `CAERep.xml`：留档和核查用。
 
+### 2.4 同名文件不唯一时如何选择
+
+完整的 Workbench 工程目录里，`dp0`、`SYS.mechdb`、`ds.dat`、`CAERep.xml` 可能不止一份。这通常不是错误，而是 Workbench 的目录结构造成的：
+
+- `dp0`、`dp1`、`dp2` 等表示不同 Design Point。`dp0` 通常是基准/当前设计点，参数化或批量更新后可能出现多个 `dp*`；
+- `SYS`、`SYS-1`、`SYS-2` 等表示同一个 Workbench 工程中的不同分析系统或复制出来的系统；
+- 每个 `<dp>/<system>/MECH/` 下都可能有自己的 `ds.dat` 和 `CAERep.xml`；
+- 对应的 Mechanical 数据库通常位于 `<dp>/global/MECH/<system>.mechdb`，例如默认系统是 `dp0/global/MECH/SYS.mechdb`。
+
+选择原则：必须选择同一个 `<dp>/<system>` 分支下互相对应的一组文件，不要混用不同分支的文件。默认工作流使用：
+
+```bash
+dp0
+SYS
+```
+
+也就是：
+
+```bash
+Void.112.510_files/dp0/global/MECH/SYS.mechdb
+Void.112.510_files/dp0/SYS/MECH/ds.dat
+Void.112.510_files/dp0/SYS/MECH/CAERep.xml
+```
+
+如果不确定是哪一组，先列出所有候选 `ds.dat`：
+
+```bash
+cd /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVFiles/Void.112.510_files
+find . -path '*/MECH/ds.dat' -print
+```
+
+输出类似：
+
+```text
+./dp0/SYS/MECH/ds.dat
+./dp1/SYS/MECH/ds.dat
+./dp0/SYS-1/MECH/ds.dat
+```
+
+其中路径里的第二段是 Design Point，第三段是 System。比如 `./dp0/SYS-1/MECH/ds.dat` 对应：
+
+```text
+design-point = dp0
+system       = SYS-1
+```
+
+最可靠的判断方法是：找出与基础路径下当前工况输入 `.dat` 对应的那份 `ds.dat`。可以先做完全一致比较：
+
+```bash
+cmp -s /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/Void.112.510.dat \
+  /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVFiles/Void.112.510_files/dp0/SYS/MECH/ds.dat \
+  && echo "MATCH" || echo "DIFFERENT"
+```
+
+如果某个候选输出 `MATCH`，优先使用它所在的 `<dp>/<system>`。如果没有完全一致，可能是 Workbench 写入了不同路径、注释或求解设置；此时继续比较文件大小、修改时间，并检查 `CAERep.xml` 是否包含当前 Mechanical/Solution/Result Probe 信息：
+
+```bash
+ls -lh /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/Void.112.510.dat
+ls -lh /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVFiles/Void.112.510_files/*/*/MECH/ds.dat
+grep -Rni "Face_Accel\\|Result Probe\\|Solution" \
+  /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVFiles/Void.112.510_files/*/*/MECH/CAERep.xml
+```
+
+确定 `<dp>/<system>` 后，运行时显式指定。例如选中 `dp0/SYS-1`：
+
+```bash
+python -m rst2csv.cli hpc-run Void.112.510 --design-point dp0 --system SYS-1
+```
+
+程序会自动使用：
+
+```bash
+Void.112.510_files/dp0/global/MECH/SYS-1.mechdb
+Void.112.510_files/dp0/SYS-1/MECH/ds.dat
+Void.112.510_files/dp0/SYS-1/MECH/CAERep.xml
+```
+
+如果 `<dp>/global/MECH/<system>.mechdb` 不存在，先列出该设计点下的 Mechanical 数据库：
+
+```bash
+find /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVFiles/Void.112.510_files/dp0/global/MECH \
+  -maxdepth 1 -name '*.mechdb' -print
+```
+
+正常情况下，`SYS` 对应 `SYS.mechdb`，`SYS-1` 对应 `SYS-1.mechdb`。如果找不到对应文件，通常说明上传的 Workbench 工程目录不完整，或 Mechanical 没有保存工程。
+
 ## 3. 首次部署
 
 ### 3.1 上传并解压源码
@@ -330,6 +416,12 @@ python -m rst2csv.cli hpc-run Void.112.510
 ```
 
 如果登录节点禁用 Python，这几行也应在计算节点交互 shell 中执行，或放入作业脚本中提交执行。
+
+如果第 2.4 节确认目标文件不是默认的 `dp0/SYS`，则追加参数，例如：
+
+```bash
+python -m rst2csv.cli hpc-run Void.112.510 --design-point dp1 --system SYS-1
+```
 
 程序会自动：
 

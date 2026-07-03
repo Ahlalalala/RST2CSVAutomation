@@ -52,11 +52,18 @@ python -m rst2csv.cli hpc-run Void.112.510
 python -m rst2csv.cli hpc-run Void.112.510 --base-dir /path/to/Desktop
 ```
 
+当 Workbench 工程目录中存在多个 Design Point 或多个分析系统时，允许显式选择：
+
+```bash
+python -m rst2csv.cli hpc-run Void.112.510 --design-point dp1 --system SYS-1
+```
+
 ## 架构
 
 新增 `src/rst2csv/hpc_paths.py`，负责：
 
 - 根据基础目录和工况名推导 `.rst`、`SYS.mechdb`、`ds.dat`、`CAERep.xml`；
+- 默认使用 `dp0/SYS`，并允许通过 CLI 参数覆盖 Design Point 和 System；
 - 创建 `CSVResult/<case>/`；
 - 生成 `CSVResult/<case>.zip`；
 - 在执行前检查必需文件是否存在。

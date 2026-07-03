@@ -21,6 +21,21 @@ class HpcPathsTests(unittest.TestCase):
         self.assertEqual(paths.output_dir, Path("/base/CSVResult/Void.112.510"))
         self.assertEqual(paths.zip_path, Path("/base/CSVResult/Void.112.510.zip"))
 
+    def test_hpc_case_paths_allow_nondefault_design_point_and_system(self):
+        paths = HpcCasePaths.from_base_and_case(
+            Path("/base"),
+            "Void.112.510",
+            design_point="dp1",
+            system="SYS-1",
+        )
+
+        self.assertEqual(
+            paths.mechdb_path,
+            Path("/base/RST2CSVFiles/Void.112.510_files/dp1/global/MECH/SYS-1.mechdb"),
+        )
+        self.assertEqual(paths.dsdat_path, Path("/base/RST2CSVFiles/Void.112.510_files/dp1/SYS-1/MECH/ds.dat"))
+        self.assertEqual(paths.caerep_path, Path("/base/RST2CSVFiles/Void.112.510_files/dp1/SYS-1/MECH/CAERep.xml"))
+
     def test_missing_inputs_lists_required_hpc_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             paths = HpcCasePaths.from_base_and_case(Path(tmp), "Void.112.510")

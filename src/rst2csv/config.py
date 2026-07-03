@@ -11,6 +11,8 @@ RST_ROOT = Path("E:/WCL/AnsysTunnel/RSTVoidBatch")
 OUTPUT_ROOT = Path("GeneratedExact")
 HPC_BASE_DIR = Path("/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop")
 HPC_WORKBENCH_FILES_DIR_NAME = "RST2CSVFiles"
+HPC_DESIGN_POINT = "dp0"
+HPC_SYSTEM = "SYS"
 
 ORIGIN_DATA_DIR_NAME = "OriginData"
 WORKBENCH_DIR_NAME = "Workbench"

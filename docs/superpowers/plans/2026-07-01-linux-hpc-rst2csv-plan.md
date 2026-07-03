@@ -32,6 +32,8 @@ def test_hpc_case_paths_follow_remote_directory_contract():
     assert paths.zip_path == Path("/base/CSVResult/Void.112.510.zip")
 ```
 
+当前实现已扩展为默认使用 `dp0/SYS`，并允许通过 `--design-point` 和 `--system` 覆盖，以适配一个 Workbench 工程目录中存在多个 Design Point 或多个分析系统的情况。
+
 - [ ] **步骤 2：运行测试确认失败**
 
 运行：

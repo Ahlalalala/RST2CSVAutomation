@@ -13,6 +13,8 @@ from . import config
 class HpcCasePaths:
     case: str
     base_dir: Path
+    design_point: str
+    system: str
     dat_path: Path
     rst_path: Path
     mechdb_path: Path
@@ -22,17 +24,25 @@ class HpcCasePaths:
     zip_path: Path
 
     @classmethod
-    def from_base_and_case(cls, base_dir: str | Path, case: str) -> "HpcCasePaths":
+    def from_base_and_case(
+        cls,
+        base_dir: str | Path,
+        case: str,
+        design_point: str = config.HPC_DESIGN_POINT,
+        system: str = config.HPC_SYSTEM,
+    ) -> "HpcCasePaths":
         base = Path(base_dir)
         files_root = base / config.HPC_WORKBENCH_FILES_DIR_NAME / f"{case}_files"
         return cls(
             case=case,
             base_dir=base,
+            design_point=design_point,
+            system=system,
             dat_path=base / f"{case}.dat",
             rst_path=base / f"TaskDir_{case}" / f"{case}.rst",
-            mechdb_path=files_root / "dp0" / "global" / "MECH" / "SYS.mechdb",
-            dsdat_path=files_root / "dp0" / "SYS" / "MECH" / "ds.dat",
-            caerep_path=files_root / "dp0" / "SYS" / "MECH" / "CAERep.xml",
+            mechdb_path=files_root / design_point / "global" / "MECH" / f"{system}.mechdb",
+            dsdat_path=files_root / design_point / system / "MECH" / "ds.dat",
+            caerep_path=files_root / design_point / system / "MECH" / "CAERep.xml",
             output_dir=base / "CSVResult" / case,
             zip_path=base / "CSVResult" / f"{case}.zip",
         )

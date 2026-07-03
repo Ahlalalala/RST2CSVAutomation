@@ -15,6 +15,8 @@ class ExactCliTests(unittest.TestCase):
             Path("/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop"),
         )
         self.assertEqual(config.HPC_WORKBENCH_FILES_DIR_NAME, "RST2CSVFiles")
+        self.assertEqual(config.HPC_DESIGN_POINT, "dp0")
+        self.assertEqual(config.HPC_SYSTEM, "SYS")
         self.assertEqual(config.MECHDB_FILE_NAME, "SYS.mechdb")
 
     def test_cli_only_exposes_exact_workflow_commands(self):
@@ -41,6 +43,22 @@ class ExactCliTests(unittest.TestCase):
         args = parser.parse_args(["hpc-run", "Void.112.510", "--base-dir", "/tmp/Desktop"])
 
         self.assertEqual(args.base_dir, Path("/tmp/Desktop"))
+
+    def test_hpc_run_allows_design_point_and_system_override(self):
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "hpc-run",
+                "Void.112.510",
+                "--design-point",
+                "dp1",
+                "--system",
+                "SYS-1",
+            ]
+        )
+
+        self.assertEqual(args.design_point, "dp1")
+        self.assertEqual(args.system, "SYS-1")
 
 
 if __name__ == "__main__":
