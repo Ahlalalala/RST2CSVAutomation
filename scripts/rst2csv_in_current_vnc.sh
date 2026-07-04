@@ -17,6 +17,11 @@ if [ "$#" -lt 1 ]; then
   exit 2
 fi
 
+CASE_NAMES=("$@")
+# Keep case names for this workflow, but do not pass them into sourced
+# environment scripts such as Intel oneAPI setvars.sh.
+set --
+
 if [ -z "${DISPLAY:-}" ]; then
   LATEST_VNC_LOG="$(ls -t "${HOME}"/.vnc/*.log 2>/dev/null | head -n 1 || true)"
   if [ -n "${LATEST_VNC_LOG}" ]; then
@@ -52,12 +57,14 @@ if command -v xdpyinfo >/dev/null 2>&1; then
   fi
 fi
 
+set +u
 source "${CONDA_SH}"
 conda activate "${CONDA_ENV}"
 PYTHON_BIN="$(command -v python)"
 
 source "${INTEL_SETVARS}"
 source "${ANSYS_SETENV}"
+set -u
 
 cd "${SOURCE_DIR}"
 export PYTHONPATH="${SOURCE_DIR}/src"
@@ -69,7 +76,7 @@ if [ -n "${XAUTHORITY:-}" ]; then
   echo "Using XAUTHORITY=${XAUTHORITY}"
 fi
 
-for CASE_NAME in "$@"; do
+for CASE_NAME in "${CASE_NAMES[@]}"; do
   echo "=== RST2CSV mechanical export: ${CASE_NAME} ==="
   "${PYTHON_BIN}" -m rst2csv.cli mechanical-hpc-run "${CASE_NAME}" \
     --base-dir "${BASE_DIR}" \

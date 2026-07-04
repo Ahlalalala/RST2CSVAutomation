@@ -223,6 +223,15 @@ python -m rst2csv.cli mechanical-hpc-run <case>
 
 这样 Workbench/Mechanical 与 VNC 的 X display 位于同一个图形会话中，可以避开“从另一个计算节点访问 VNC display”导致的 `Cannot open X display`。
 
+如果运行旧版脚本时出现：
+
+```text
+args: Using "$@" for setvars.sh arguments: Void.40.245
+OCL_ICD_FILENAMES: unbound variable
+```
+
+说明工况名仍被传入了 Intel oneAPI 环境脚本，且 `set -u` 使环境脚本内部未定义变量触发退出。更新新版 `scripts/rst2csv_in_current_vnc.sh` 后，该脚本会先保存工况列表，再清空传给环境脚本的位置参数，并在加载第三方环境脚本期间临时关闭 `nounset`。
+
 如果后续 HPC 服务人员提供了 VNC 作业的命令行创建接口，可以继续封装更完整的一键入口；在未掌握该接口前，本工作流只自动识别和使用已有 VNC 会话，不自动创建 VNC 作业。
 
 ## 7. dry-run 检查

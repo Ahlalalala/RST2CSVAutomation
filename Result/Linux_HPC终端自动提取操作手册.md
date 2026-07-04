@@ -159,6 +159,15 @@ bash scripts/rst2csv_in_current_vnc.sh Void.40.245 Void.67.675 Void.112.510
 
 该脚本会直接复用 VNC 桌面终端中的 `DISPLAY`。如果当前终端没有 `DISPLAY`，脚本会尝试从 `~/.vnc/*.log` 中识别最新的 VNC 显示号；但最可靠的方式仍然是在 VNC 桌面终端中运行。
 
+如果旧脚本输出：
+
+```text
+args: Using "$@" for setvars.sh arguments: Void.40.245
+OCL_ICD_FILENAMES: unbound variable
+```
+
+说明工况名被误传给了 Intel oneAPI 的 `setvars.sh`，且脚本的 `set -u` 影响了第三方环境脚本。请更新到新版 `scripts/rst2csv_in_current_vnc.sh`，或重新上传最新源码包后再运行。
+
 VNC 作业创建能否完全自动化取决于 HPC 平台提供的 VNC 提交命令。当前已知信息只包含 VNC 运行后的日志位置，尚不知道平台创建 VNC 作业的命令接口，因此本工作流暂不自动创建 VNC 作业。若服务人员提供 VNC 作业的命令行创建方式，可再把“创建 VNC 作业、等待 DISPLAY 就绪、运行提取”封装成一个总入口脚本。
 
 ## 5. 常见错误
