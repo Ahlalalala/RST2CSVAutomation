@@ -10,6 +10,13 @@ class ExactCliTests(unittest.TestCase):
         self.assertEqual(config.BACKUP_ROOT, Path("Backup"))
         self.assertEqual(config.RST_ROOT, Path("E:/WCL/AnsysTunnel/RSTVoidBatch"))
         self.assertEqual(config.OUTPUT_ROOT, Path("GeneratedExact"))
+        self.assertEqual(config.LOCAL_WORKBENCH_ROOT, Path("E:/WCL/AnsysTunnel"))
+        self.assertEqual(config.LOCAL_RST_ROOT, Path("E:/WCL/AnsysTunnel/RSTVoidBatch"))
+        self.assertEqual(config.LOCAL_OUTPUT_ROOT, Path("E:/WCL/AnsysTunnel/AutoCSVResult"))
+        self.assertEqual(
+            config.LOCAL_RUNWB2_PATH,
+            Path("D:/Program Files/ANSYS Inc R2/v252/Framework/bin/Win64/RunWB2.exe"),
+        )
         self.assertEqual(
             config.HPC_BASE_DIR,
             Path("/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop"),
@@ -29,7 +36,7 @@ class ExactCliTests(unittest.TestCase):
 
         self.assertEqual(
             set(subparsers_action.choices),
-            {"check", "export", "validate", "run", "hpc-run", "mechanical-hpc-run"},
+            {"check", "export", "validate", "run", "hpc-run", "mechanical-hpc-run", "local-run"},
         )
 
     def test_export_defaults_to_exact_output_root(self):
@@ -88,6 +95,40 @@ class ExactCliTests(unittest.TestCase):
         self.assertEqual(args.runwb2, Path("/ansys/runwb2"))
         self.assertEqual(args.mechanical_timeout_seconds, 7200)
         self.assertTrue(args.dry_run)
+
+    def test_local_run_defaults_to_windows_roots(self):
+        parser = build_parser()
+        args = parser.parse_args(["local-run", "Void.112.510"])
+
+        self.assertEqual(args.cases, ["Void.112.510"])
+        self.assertEqual(args.workbench_root, config.LOCAL_WORKBENCH_ROOT)
+        self.assertEqual(args.rst_root, config.LOCAL_RST_ROOT)
+        self.assertEqual(args.output_root, config.LOCAL_OUTPUT_ROOT)
+        self.assertEqual(args.runwb2, config.LOCAL_RUNWB2_PATH)
+
+    def test_local_run_accepts_multiple_cases_and_overrides(self):
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "local-run",
+                "Void.40.245",
+                "Void.67.675",
+                "--workbench-root",
+                "D:/wb",
+                "--rst-root",
+                "D:/rst",
+                "--output-root",
+                "D:/out",
+                "--runwb2",
+                "D:/ansys/RunWB2.exe",
+            ]
+        )
+
+        self.assertEqual(args.cases, ["Void.40.245", "Void.67.675"])
+        self.assertEqual(args.workbench_root, Path("D:/wb"))
+        self.assertEqual(args.rst_root, Path("D:/rst"))
+        self.assertEqual(args.output_root, Path("D:/out"))
+        self.assertEqual(args.runwb2, Path("D:/ansys/RunWB2.exe"))
 
 
 if __name__ == "__main__":

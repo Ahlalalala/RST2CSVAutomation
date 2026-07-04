@@ -14,6 +14,7 @@ from .mechdb_cache import (
     load_probe_histories_from_mechdb,
 )
 from .hpc_paths import HpcCasePaths
+from .local_paths import LocalCasePaths
 from .mechanical_batch import (
     MechanicalBatchConfig,
     find_runwb2,
@@ -121,6 +122,43 @@ def build_parser() -> argparse.ArgumentParser:
     )
     mechanical_hpc_parser.set_defaults(func=mechanical_hpc_run_command)
 
+    local_parser = subparsers.add_parser(
+        "local-run",
+        help="Run exact local Windows Workbench/RST export and create a case zip package.",
+    )
+    local_parser.add_argument("cases", nargs="+", help="Case names such as Void.112.510.")
+    local_parser.add_argument("--workbench-root", type=Path, default=config.LOCAL_WORKBENCH_ROOT)
+    local_parser.add_argument("--rst-root", type=Path, default=config.LOCAL_RST_ROOT)
+    local_parser.add_argument("--output-root", type=Path, default=config.LOCAL_OUTPUT_ROOT)
+    local_parser.add_argument("--runwb2", type=Path, default=config.LOCAL_RUNWB2_PATH)
+    local_parser.add_argument(
+        "--mechanical-timeout-seconds",
+        type=int,
+        default=config.HPC_MECHANICAL_STATUS_TIMEOUT_SECONDS,
+        help="Maximum seconds to wait for Mechanical status after launching Workbench.",
+    )
+    local_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Only generate Workbench/Mechanical batch scripts; do not run Workbench.",
+    )
+    local_parser.add_argument(
+        "--design-point",
+        default=config.HPC_DESIGN_POINT,
+        help="Workbench design point directory, default: dp0.",
+    )
+    local_parser.add_argument(
+        "--system",
+        default=config.HPC_SYSTEM,
+        help="Workbench system directory/name, default: SYS.",
+    )
+    local_parser.add_argument(
+        "--component",
+        default=config.HPC_WORKBENCH_COMPONENT,
+        help="Workbench Mechanical container, default: Model.",
+    )
+    local_parser.set_defaults(func=local_run_command)
+
     check_parser = subparsers.add_parser("check", help="Check optional runtime dependencies.")
     check_parser.set_defaults(func=check_command)
 
@@ -166,41 +204,83 @@ def mechanical_hpc_run_command(args) -> int:
         design_point=args.design_point,
         system=args.system,
     )
+    return _run_fresh_workbench_case(
+        case=args.case,
+        paths=paths,
+        runwb2=args.runwb2,
+        mechanical_timeout_seconds=args.mechanical_timeout_seconds,
+        dry_run=args.dry_run,
+        workbench_system=args.system,
+        workbench_component=args.component,
+    )
+
+
+def local_run_command(args) -> int:
+    for case in args.cases:
+        paths = LocalCasePaths.from_roots(
+            workbench_root=args.workbench_root,
+            rst_root=args.rst_root,
+            output_root=args.output_root,
+            case=case,
+            design_point=args.design_point,
+            system=args.system,
+        )
+        _run_fresh_workbench_case(
+            case=case,
+            paths=paths,
+            runwb2=args.runwb2,
+            mechanical_timeout_seconds=args.mechanical_timeout_seconds,
+            dry_run=args.dry_run,
+            workbench_system=args.system,
+            workbench_component=args.component,
+        )
+    return 0
+
+
+def _run_fresh_workbench_case(
+    case: str,
+    paths,
+    runwb2: Path | None,
+    mechanical_timeout_seconds: int,
+    dry_run: bool,
+    workbench_system: str,
+    workbench_component: str,
+) -> int:
     paths.require_inputs()
     batch_config = MechanicalBatchConfig(
-        case=args.case,
+        case=case,
         project_path=paths.project_path,
         rst_path=paths.rst_path,
         output_dir=paths.output_dir,
         status_path=paths.mechanical_status_path,
         mechanical_script_path=paths.mechanical_script_path,
-        workbench_system=args.system,
-        workbench_component=args.component,
+        workbench_system=workbench_system,
+        workbench_component=workbench_component,
     )
     write_mechanical_batch_files(batch_config, paths.workbench_journal_path)
-    print(f"{args.case}: generated Workbench journal: {paths.workbench_journal_path}")
-    print(f"{args.case}: generated Mechanical script: {paths.mechanical_script_path}")
-    if args.dry_run:
-        if args.runwb2:
-            print(f"{args.case}: dry run command: {args.runwb2} -B -R {paths.workbench_journal_path}")
+    print(f"{case}: generated Workbench journal: {paths.workbench_journal_path}")
+    print(f"{case}: generated Mechanical script: {paths.mechanical_script_path}")
+    if dry_run:
+        if runwb2:
+            print(f"{case}: dry run command: {runwb2} -B -R {paths.workbench_journal_path}")
         else:
-            print(f"{args.case}: dry run complete; set {config.HPC_RUNWB2_ENV_VAR} or pass --runwb2 before running.")
+            print(f"{case}: dry run complete; set {config.HPC_RUNWB2_ENV_VAR} or pass --runwb2 before running.")
         return 0
 
-    runwb2_path = find_runwb2(args.runwb2)
+    runwb2_path = find_runwb2(runwb2)
     _remove_stale_status(paths.mechanical_status_path)
     run_workbench_batch(runwb2_path, paths.workbench_journal_path, paths.batch_dir)
-    _wait_for_mechanical_status(paths.mechanical_status_path, args.mechanical_timeout_seconds)
+    _wait_for_mechanical_status(paths.mechanical_status_path, mechanical_timeout_seconds)
     _require_mechanical_status_ok(paths.mechanical_status_path)
     written = _export_exact_case(
-        case=args.case,
+        case=case,
         rst_path=paths.rst_path,
         mechdb_path=paths.mechdb_path,
         output_dir=paths.output_dir,
     )
     zip_path = paths.zip_output_dir()
-    print(f"{args.case}: exported {len(written)} exact cached Mechanical files to {paths.output_dir}")
-    print(f"{args.case}: packaged {zip_path}")
+    print(f"{case}: exported {len(written)} exact cached Mechanical files to {paths.output_dir}")
+    print(f"{case}: packaged {zip_path}")
     return 0
 
 

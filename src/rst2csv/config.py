@@ -9,6 +9,10 @@ from pathlib import Path
 BACKUP_ROOT = Path("Backup")
 RST_ROOT = Path("E:/WCL/AnsysTunnel/RSTVoidBatch")
 OUTPUT_ROOT = Path("GeneratedExact")
+LOCAL_WORKBENCH_ROOT = Path("E:/WCL/AnsysTunnel")
+LOCAL_RST_ROOT = Path("E:/WCL/AnsysTunnel/RSTVoidBatch")
+LOCAL_OUTPUT_ROOT = Path("E:/WCL/AnsysTunnel/AutoCSVResult")
+LOCAL_RUNWB2_PATH = Path("D:/Program Files/ANSYS Inc R2/v252/Framework/bin/Win64/RunWB2.exe")
 HPC_BASE_DIR = Path("/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop")
 HPC_WORKBENCH_FILES_DIR_NAME = "RST2CSVFiles"
 HPC_CSV_RESULT_DIR_NAME = "CSVResult"
