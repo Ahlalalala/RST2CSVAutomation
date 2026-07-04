@@ -192,7 +192,40 @@ sbatch python1.slurm Void.112.510
 
 如果单个工况很慢，可把 `MECHANICAL_TIMEOUT_SECONDS` 调大，例如 172800 表示 48 小时。
 
-## 6. dry-run 检查
+## 6. VNC 作业内运行方式
+
+如果集群的 VNC 是一个独立 Slurm 作业，且普通 `python1.slurm` 提取作业无法访问该 VNC 的 `DISPLAY`，应把自动提取直接放到 VNC 作业内部执行。
+
+操作步骤：
+
+1. 按 HPC 平台方式创建 VNC 作业，指定核心数和运行时长。
+2. 进入 VNC Linux 桌面。
+3. 在 VNC 桌面中打开终端。
+4. 运行：
+
+```bash
+cd /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVAutomation
+sed -i 's/\r$//' scripts/rst2csv_in_current_vnc.sh
+bash scripts/rst2csv_in_current_vnc.sh Void.40.245
+```
+
+批量运行：
+
+```bash
+bash scripts/rst2csv_in_current_vnc.sh Void.40.245 Void.67.675 Void.112.510
+```
+
+该脚本不会再次提交调度作业，而是在当前 VNC 桌面终端所在的节点内直接调用：
+
+```bash
+python -m rst2csv.cli mechanical-hpc-run <case>
+```
+
+这样 Workbench/Mechanical 与 VNC 的 X display 位于同一个图形会话中，可以避开“从另一个计算节点访问 VNC display”导致的 `Cannot open X display`。
+
+如果后续 HPC 服务人员提供了 VNC 作业的命令行创建接口，可以继续封装更完整的一键入口；在未掌握该接口前，本工作流只自动识别和使用已有 VNC 会话，不自动创建 VNC 作业。
+
+## 7. dry-run 检查
 
 dry-run 只生成 Workbench journal 和 Mechanical 脚本，不真正运行 Workbench，也不会读取巨大 RST：
 
@@ -212,7 +245,7 @@ CSVResult/Void.112.510/_mechanical_batch/run_workbench.wbjn
 CSVResult/Void.112.510/_mechanical_batch/export_probes_mechanical.py
 ```
 
-## 7. 正式输出
+## 8. 正式输出
 
 正式运行成功后：
 
@@ -237,7 +270,7 @@ CSVResult/Void.112.510.zip
 
 压缩包内部会保留一层 `Void.112.510/` 文件夹，便于区分不同工况。
 
-## 8. 常见错误
+## 9. 常见错误
 
 ### cached histories missing probes
 
@@ -325,6 +358,8 @@ sbatch --export=ALL,RST2CSV_VNC_DISPLAY=:1,RST2CSV_XAUTHORITY=$HOME/.Xauthority 
 
 注意：Slurm 作业通常在计算节点运行，VNC 可能在登录节点运行。若 VNC 的 `:1` 只属于登录节点，计算节点仍然无法启动 Mechanical editor。此时应联系 HPC 服务人员确认可行方案：在计算节点安装或加载 `Xvfb`，或提供计算节点可访问的 VNC/X11 `DISPLAY`。
 
+若 VNC 本身就是一个独立作业，并且日志中显示形如 `node176.prod.phadcloud.local:23`，优先使用第 6 节的 `scripts/rst2csv_in_current_vnc.sh`，在 VNC 桌面终端内直接运行提取，不要继续从另一个普通 Slurm 作业里引用该显示号。
+
 如果没有可用 VNC，再检查 `Xvfb`：
 
 ```bash
@@ -347,7 +382,7 @@ CSVResult/<case>/_mechanical_batch/workbench_stderr.log
 
 如果 `mechanical_status.txt` 第一行是 `OK`，说明 Workbench 已完成缓存生成；如果第一行是 `ERROR`，后面会有 Mechanical Python 的详细错误堆栈。
 
-## 9. 精度说明
+## 10. 精度说明
 
 不要使用 Mechanical 的 `SequenceTotalVector(i)` 或文本导出作为最终数据源；该接口返回的是显示精度，可能把 `2.873846761e-05` 显示为 `2.9e-05`。本工作流只让 Mechanical 生成高精度 `SYS.mechdb` 缓存，然后由 Python 读取缓存中的 double 数组并按 Workbench CSV 格式写出。
 
@@ -365,7 +400,7 @@ CSVResult/<case>/_mechanical_batch/workbench_stderr.log
 
 因此最终 CSV 的精度与已验证的缓存精确工作流一致，而不是低精度文本导出。
 
-## 10. 已完成的本机验证
+## 11. 已完成的本机验证
 
 已在本机 Workbench 2025R2 上用 `Void.85.210` 做端到端验证：
 

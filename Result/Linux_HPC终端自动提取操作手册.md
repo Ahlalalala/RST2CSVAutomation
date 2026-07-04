@@ -125,7 +125,43 @@ CSVResult/Void.112.510.zip
 CSVResult/Void.112.510.zip
 ```
 
-## 4. 常见错误
+## 4. VNC 作业内运行方式
+
+如果 `python1.slurm` 中即使指定 `RST2CSV_VNC_DISPLAY=节点名:编号` 仍报：
+
+```text
+Cannot open X display
+Fatal error: Unable to start the Mechanical editor.
+```
+
+说明普通提取作业没有运行在 VNC 作业的同一个图形会话里。自动识别 `node176.prod.phadcloud.local:23` 这类显示号本身不能保证成功，因为 Slurm 可能把提取作业调度到其他节点。
+
+此时推荐改用 VNC 作业内运行方式：
+
+1. 先按 HPC 平台提供的方法创建 VNC 作业，指定所需核心数和运行时长。
+2. 进入该 VNC Linux 桌面。
+3. 在 VNC 桌面里打开终端。
+4. 在该终端中运行自动提取脚本。
+
+命令如下：
+
+```bash
+cd /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVAutomation
+sed -i 's/\r$//' scripts/rst2csv_in_current_vnc.sh
+bash scripts/rst2csv_in_current_vnc.sh Void.40.245
+```
+
+批量提取直接把多个工况写在同一条命令后面：
+
+```bash
+bash scripts/rst2csv_in_current_vnc.sh Void.40.245 Void.67.675 Void.112.510
+```
+
+该脚本会直接复用 VNC 桌面终端中的 `DISPLAY`。如果当前终端没有 `DISPLAY`，脚本会尝试从 `~/.vnc/*.log` 中识别最新的 VNC 显示号；但最可靠的方式仍然是在 VNC 桌面终端中运行。
+
+VNC 作业创建能否完全自动化取决于 HPC 平台提供的 VNC 提交命令。当前已知信息只包含 VNC 运行后的日志位置，尚不知道平台创建 VNC 作业的命令接口，因此本工作流暂不自动创建 VNC 作业。若服务人员提供 VNC 作业的命令行创建方式，可再把“创建 VNC 作业、等待 DISPLAY 就绪、运行提取”封装成一个总入口脚本。
+
+## 5. 常见错误
 
 ### cached histories missing probes
 
@@ -192,6 +228,8 @@ sbatch --export=ALL,RST2CSV_VNC_DISPLAY=:1,RST2CSV_XAUTHORITY=$HOME/.Xauthority 
 - 提供可被计算节点访问的 VNC/X11 `DISPLAY`，例如 `某节点:1`，并配置好访问权限。
 - 提供带图形显示的交互计算节点，然后在该节点内提交或运行 Workbench 批处理。
 
+若 VNC 本身就是一个独立作业，并且日志中显示形如 `node176.prod.phadcloud.local:23`，优先使用第 4 节的 `scripts/rst2csv_in_current_vnc.sh`，在 VNC 桌面终端内直接运行提取，不要继续从另一个普通 Slurm 作业里引用该显示号。
+
 如果没有 VNC 可用，再检查：
 
 ```bash
@@ -214,6 +252,6 @@ CSVResult/<case>/_mechanical_batch/workbench_stdout.log
 CSVResult/<case>/_mechanical_batch/workbench_stderr.log
 ```
 
-## 5. 已验证结论
+## 6. 已验证结论
 
 本机 Workbench 2025R2 已使用 `Void.85.210` 从 0 缓存 fresh 工程完成端到端验证，生成的 7 个 CSV 与 `OriginData/Void.85.210/FaceAccel_*.CSV` 逐字节一致，验证器误差全部为 0。
