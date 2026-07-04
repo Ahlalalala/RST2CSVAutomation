@@ -25,6 +25,10 @@ if [ -z "${CASE_NAME}" ]; then
   exit 2
 fi
 
+# Keep the case name for this workflow, but do not pass it into sourced
+# environment scripts such as Intel oneAPI setvars.sh.
+set --
+
 source "${CONDA_SH}"
 conda activate "${CONDA_ENV}"
 PYTHON_BIN="$(command -v python)"
