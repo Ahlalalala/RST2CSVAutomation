@@ -277,21 +277,36 @@ Run:
 
 ```powershell
 $env:PYTHONPATH='src'
-python -m rst2csv.cli local-run Void.85.210 --dry-run
+$case = 'Void.85.210'
+$wbRoot = (Resolve-Path -LiteralPath "LocalWorkbenchVerifyFresh/TruthTest_$case").Path
+$outRoot = Join-Path $wbRoot 'AutoCSVResult'
+python -m rst2csv.cli local-run $case `
+  --workbench-root $wbRoot `
+  --rst-root E:/WCL/AnsysTunnel/RSTVoidBatch `
+  --output-root $outRoot `
+  --dry-run
 ```
 
-Expected: generated Workbench journal and Mechanical script under `E:/WCL/AnsysTunnel/AutoCSVResult/Void.85.210/_mechanical_batch/`.
+Expected: generated Workbench journal and Mechanical script under `LocalWorkbenchVerifyFresh/TruthTest_Void.85.210/AutoCSVResult/Void.85.210/_mechanical_batch/`.
 
 - [ ] **Step 3: Run local end-to-end verification**
 
-Run only when ready to reserve 40-60 minutes:
+Before running, copy the fresh source project from `OriginData/RST2CSVFiles` to an ignored isolated directory and confirm cached histories are 0. Then run only when ready to reserve 40-60 minutes:
 
 ```powershell
 $env:PYTHONPATH='src'
-python -m rst2csv.cli local-run Void.85.210 --mechanical-timeout-seconds 14400
+$case = 'Void.85.210'
+$wbRoot = (Resolve-Path -LiteralPath "LocalWorkbenchVerifyFresh/TruthTest_$case").Path
+$outRoot = Join-Path $wbRoot 'AutoCSVResult'
+python -m rst2csv.cli local-run $case `
+  --workbench-root $wbRoot `
+  --rst-root E:/WCL/AnsysTunnel/RSTVoidBatch `
+  --output-root $outRoot `
+  --runwb2 "D:/Program Files/ANSYS Inc R2/v252/Framework/bin/Win64/RunWB2.exe" `
+  --mechanical-timeout-seconds 14400
 ```
 
-Expected: 7 CSV files and `E:/WCL/AnsysTunnel/AutoCSVResult/Void.85.210.zip`.
+Expected: 7 CSV files and `LocalWorkbenchVerifyFresh/TruthTest_Void.85.210/AutoCSVResult/Void.85.210.zip`; cached histories increase from 0 to 700.
 
 - [ ] **Step 4: Compare against reference CSVs**
 
@@ -299,7 +314,7 @@ Run:
 
 ```powershell
 $env:PYTHONPATH='src'
-python -m rst2csv.cli validate Void.85.210 --output-root E:/WCL/AnsysTunnel/AutoCSVResult
+python -m rst2csv.cli validate Void.85.210 --output-root LocalWorkbenchVerifyFresh/TruthTest_Void.85.210/AutoCSVResult
 ```
 
 Expected: every face reports `probe_max_abs_error=0` and `all_max_abs_error=0`.

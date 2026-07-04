@@ -129,19 +129,30 @@ Workbench 批处理失败时，保留：
 - 本机输出打包结构是否为 `<case>/FaceAccel_*.CSV`。
 - `mechanical-hpc-run` 既有行为不受影响。
 
-端到端验证使用本机 Workbench 2025 R2 和 `Void.85.210`：
+端到端验证使用本机 Workbench 2025 R2 和 `Void.85.210`。由于 `E:/WCL/AnsysTunnel` 下现有 `<case>_files` 可能已经完成过 RST 载入，真实 fresh 验证必须先从 `OriginData/RST2CSVFiles` 复制一份未载入工程到工作目录隔离副本，例如：
+
+```text
+LocalWorkbenchVerifyFresh/TruthTest_Void.85.210/
+|-- Void.85.210.wbpj
+`-- Void.85.210_files/
+```
+
+并先确认隔离副本中的 `SYS.mechdb` 缓存历史数为 0。随后运行：
 
 ```powershell
 $env:PYTHONPATH='src'
+$case = 'Void.85.210'
+$wbRoot = (Resolve-Path -LiteralPath "LocalWorkbenchVerifyFresh/TruthTest_$case").Path
+$outRoot = Join-Path $wbRoot 'AutoCSVResult'
 python -m rst2csv.cli local-run Void.85.210 `
-  --workbench-root E:/WCL/AnsysTunnel `
+  --workbench-root $wbRoot `
   --rst-root E:/WCL/AnsysTunnel/RSTVoidBatch `
-  --output-root E:/WCL/AnsysTunnel/AutoCSVResult `
+  --output-root $outRoot `
   --runwb2 "D:/Program Files/ANSYS Inc R2/v252/Framework/bin/Win64/RunWB2.exe" `
   --mechanical-timeout-seconds 14400
 ```
 
-全套端到端验证单次应预留 40-60 分钟。验证完成后，将 `E:/WCL/AnsysTunnel/AutoCSVResult/Void.85.210/FaceAccel_*.CSV` 与 `OriginData/Void.85.210/FaceAccel_*.CSV` 比较，目标为 7 个文件逐字节一致，验证器显示 `probe_max_abs_error=0` 和 `all_max_abs_error=0`。
+全套端到端验证单次应预留 40-60 分钟。验证完成后，将隔离副本 `AutoCSVResult/Void.85.210/FaceAccel_*.CSV` 与 `OriginData/Void.85.210/FaceAccel_*.CSV` 比较，目标为 7 个文件逐字节一致，验证器显示 `probe_max_abs_error=0` 和 `all_max_abs_error=0`。
 
 ## 手册
 

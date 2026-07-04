@@ -134,18 +134,39 @@ Get-Process | Where-Object {
 
 ## 7. 验证 0 误差
 
-本机端到端验证建议使用已有参考数据 `Void.85.210`。单次完整 Workbench 运行需要预留 40-60 分钟：
+本机端到端验证建议使用已有参考数据 `Void.85.210`。注意：如果 `E:/WCL/AnsysTunnel/<case>_files` 已经完成过 RST 载入，它只能验证读取和导出链路，不能证明 fresh 工程自动载入性能。
+
+真实 fresh 验证应先从仓库内的未载入工程复制一份隔离副本：
 
 ```powershell
 cd D:/Developing_WCL/RST2CSV
+$case = 'Void.85.210'
+$destRoot = Join-Path (Get-Location) "LocalWorkbenchVerifyFresh/TruthTest_$case"
+New-Item -ItemType Directory -Force -Path $destRoot | Out-Null
+Copy-Item -LiteralPath "OriginData/RST2CSVFiles/$case.wbpj" -Destination (Join-Path $destRoot "$case.wbpj")
+Copy-Item -LiteralPath "OriginData/RST2CSVFiles/${case}_files" -Destination (Join-Path $destRoot "${case}_files") -Recurse
+```
+
+然后对这份隔离副本运行：
+
+```powershell
+cd D:/Developing_WCL/RST2CSV
+$case = 'Void.85.210'
+$wbRoot = (Resolve-Path -LiteralPath "LocalWorkbenchVerifyFresh/TruthTest_$case").Path
+$outRoot = Join-Path $wbRoot 'AutoCSVResult'
 $env:PYTHONPATH='src'
-python -m rst2csv.cli local-run Void.85.210 --mechanical-timeout-seconds 14400
+python -m rst2csv.cli local-run $case `
+  --workbench-root $wbRoot `
+  --rst-root E:/WCL/AnsysTunnel/RSTVoidBatch `
+  --output-root $outRoot `
+  --runwb2 "D:/Program Files/ANSYS Inc R2/v252/Framework/bin/Win64/RunWB2.exe" `
+  --mechanical-timeout-seconds 14400
 ```
 
 完成后验证：
 
 ```powershell
-python -m rst2csv.cli validate Void.85.210 --output-root E:/WCL/AnsysTunnel/AutoCSVResult
+python -m rst2csv.cli validate Void.85.210 --output-root LocalWorkbenchVerifyFresh/TruthTest_Void.85.210/AutoCSVResult
 ```
 
 目标输出中每个文件应为：
@@ -166,6 +187,8 @@ python -m rst2csv.cli local-run Void.85.210 --dry-run
 ```text
 Result/本机Workbench自动提取CSV验证报告.md
 ```
+
+该验证使用 `OriginData/RST2CSVFiles` 的 fresh 副本，运行前缓存历史数为 0，运行后为 700，耗时约 34 分 57 秒，7 个 CSV 与参考数据逐字节一致。
 
 ## 8. 注意事项
 
