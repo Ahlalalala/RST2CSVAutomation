@@ -18,6 +18,8 @@ INTEL_SETVARS="/home/software/intel/oneapi/2022.1/setvars.sh"
 ANSYS_SETENV="/home/software/ansys/2025R2/setenv.sh"
 RUNWB2_PATH="${RST2CSV_RUNWB2:-/home/software/ansys/2025R2/ansys_inc/v252/Framework/bin/Linux64/runwb2}"
 MECHANICAL_TIMEOUT_SECONDS="86400"
+VNC_DISPLAY="${RST2CSV_VNC_DISPLAY:-}"
+XAUTHORITY_PATH="${RST2CSV_XAUTHORITY:-${HOME}/.Xauthority}"
 XVFB_BIN="${XVFB_BIN:-}"
 XVFB_SCREEN="1920x1080x24"
 
@@ -38,6 +40,14 @@ PYTHON_BIN="$(command -v python)"
 source "${INTEL_SETVARS}"
 source "${ANSYS_SETENV}"
 
+if [ -n "${VNC_DISPLAY}" ]; then
+  export DISPLAY="${VNC_DISPLAY}"
+fi
+
+if [ -n "${DISPLAY:-}" ] && [ -f "${XAUTHORITY_PATH}" ]; then
+  export XAUTHORITY="${XAUTHORITY_PATH}"
+fi
+
 if [ -z "${DISPLAY:-}" ]; then
   if [ -z "${XVFB_BIN}" ]; then
     XVFB_BIN="$(command -v Xvfb || true)"
@@ -53,6 +63,11 @@ if [ -z "${DISPLAY:-}" ]; then
   XVFB_PID="$!"
   trap 'kill "${XVFB_PID}" 2>/dev/null || true' EXIT
   sleep 3
+fi
+
+echo "Using DISPLAY=${DISPLAY}"
+if [ -n "${XAUTHORITY:-}" ]; then
+  echo "Using XAUTHORITY=${XAUTHORITY}"
 fi
 
 cd "${SOURCE_DIR}"

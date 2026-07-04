@@ -156,15 +156,49 @@ Cannot open X display "(not specified)".
 Fatal error: Unable to start the Mechanical editor.
 ```
 
-说明计算节点没有图形显示环境。Mechanical batch 仍需要 X display。新版 `scripts/rst2csv_mechanical.slurm` 会自动查找并启动 `Xvfb` 虚拟显示。
+说明计算节点没有图形显示环境。Mechanical batch 仍需要 X display。新版 `scripts/rst2csv_mechanical.slurm` 的处理顺序是：
 
-如果仍然报错，先检查：
+1. 如果手动指定了 `RST2CSV_VNC_DISPLAY`，优先使用已有 VNC/X11 显示会话。
+2. 如果作业环境本身已有 `DISPLAY`，直接使用该显示会话。
+3. 如果没有 `DISPLAY`，再自动查找并启动 `Xvfb`。
+
+如果已经手动安装或启动了 VNC，不要查找 `VNC` 程序路径，而是确认 VNC 对应的 `DISPLAY`。常用检查命令：
+
+```bash
+echo "$DISPLAY"
+hostname
+ps -fu "$USER" | grep -Ei 'Xvnc|Xtigervnc|vnc' | grep -v grep
+ls -lt ~/.vnc 2>/dev/null
+grep -H "desktop is\\|New.*desktop\\|DISPLAY" ~/.vnc/*.log 2>/dev/null
+```
+
+常见结果形如 `:1`、`:2` 或 `节点名:1`。如果是在 VNC 桌面里的终端执行，`echo "$DISPLAY"` 通常就是最可靠的值。
+
+提交时可以临时指定：
+
+```bash
+sbatch --export=ALL,RST2CSV_VNC_DISPLAY=:1 python1.slurm Void.40.245
+```
+
+如果需要指定 X authority 文件：
+
+```bash
+sbatch --export=ALL,RST2CSV_VNC_DISPLAY=:1,RST2CSV_XAUTHORITY=$HOME/.Xauthority python1.slurm Void.40.245
+```
+
+注意：Slurm 作业通常运行在计算节点，而 VNC 可能运行在登录节点。如果 VNC 的 `DISPLAY=:1` 只存在于登录节点，计算节点仍可能打不开。此时需要 HPC 服务人员确认以下任一方案：
+
+- 在计算节点可用的环境中安装或加载 `Xvfb`。
+- 提供可被计算节点访问的 VNC/X11 `DISPLAY`，例如 `某节点:1`，并配置好访问权限。
+- 提供带图形显示的交互计算节点，然后在该节点内提交或运行 Workbench 批处理。
+
+如果没有 VNC 可用，再检查：
 
 ```bash
 which Xvfb
 ```
 
-如果没有输出，需要联系 HPC 服务人员安装或加载 `Xvfb`。也可以在脚本顶部手动指定：
+如果没有输出，需要联系 HPC 服务人员安装或加载 `Xvfb`。如果 `Xvfb` 已安装但不在 `PATH`，可以在脚本顶部手动指定：
 
 ```bash
 XVFB_BIN="/usr/bin/Xvfb"

@@ -294,13 +294,44 @@ Cannot open X display "(not specified)".
 Fatal error: Unable to start the Mechanical editor.
 ```
 
-说明 Workbench 已启动，但 Mechanical editor 在计算节点没有可用 X display。当前 Slurm 模板会自动启动 `Xvfb`：
+说明 Workbench 已启动，但 Mechanical editor 在计算节点没有可用 X display。当前 Slurm 模板支持两种显示来源：
+
+- 已有 VNC/X11 显示会话：通过 `RST2CSV_VNC_DISPLAY` 指定。
+- 无已有显示会话：自动查找并启动 `Xvfb`。
+
+如果已经手动安装或启动 VNC，首先确认 VNC 的 `DISPLAY`，不是确认 VNC 的安装路径：
+
+```bash
+echo "$DISPLAY"
+hostname
+ps -fu "$USER" | grep -Ei 'Xvnc|Xtigervnc|vnc' | grep -v grep
+ls -lt ~/.vnc 2>/dev/null
+grep -H "desktop is\\|New.*desktop\\|DISPLAY" ~/.vnc/*.log 2>/dev/null
+```
+
+常见 `DISPLAY` 是 `:1`、`:2` 或 `节点名:1`。如果是在 VNC 桌面终端中检查，`echo "$DISPLAY"` 的输出通常最可信。
+
+指定 VNC 显示会话提交：
+
+```bash
+sbatch --export=ALL,RST2CSV_VNC_DISPLAY=:1 python1.slurm Void.40.245
+```
+
+如果需要同时指定 X authority：
+
+```bash
+sbatch --export=ALL,RST2CSV_VNC_DISPLAY=:1,RST2CSV_XAUTHORITY=$HOME/.Xauthority python1.slurm Void.40.245
+```
+
+注意：Slurm 作业通常在计算节点运行，VNC 可能在登录节点运行。若 VNC 的 `:1` 只属于登录节点，计算节点仍然无法启动 Mechanical editor。此时应联系 HPC 服务人员确认可行方案：在计算节点安装或加载 `Xvfb`，或提供计算节点可访问的 VNC/X11 `DISPLAY`。
+
+如果没有可用 VNC，再检查 `Xvfb`：
 
 ```bash
 which Xvfb
 ```
 
-若没有输出，请联系 HPC 服务人员安装或加载 `Xvfb`，或在 `python1.slurm` 顶部设置：
+若没有输出，请联系 HPC 服务人员安装或加载 `Xvfb`。如果 `Xvfb` 已安装但不在 `PATH`，可在 `python1.slurm` 顶部设置：
 
 ```bash
 XVFB_BIN="/usr/bin/Xvfb"
