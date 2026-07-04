@@ -147,6 +147,29 @@ python -m rst2csv.cli mechanical-hpc-run Void.112.510
 export RST2CSV_RUNWB2=/实际路径/runwb2
 ```
 
+### Cannot open X display
+
+错误形如：
+
+```text
+Cannot open X display "(not specified)".
+Fatal error: Unable to start the Mechanical editor.
+```
+
+说明计算节点没有图形显示环境。Mechanical batch 仍需要 X display。新版 `scripts/rst2csv_mechanical.slurm` 会自动查找并启动 `Xvfb` 虚拟显示。
+
+如果仍然报错，先检查：
+
+```bash
+which Xvfb
+```
+
+如果没有输出，需要联系 HPC 服务人员安装或加载 `Xvfb`。也可以在脚本顶部手动指定：
+
+```bash
+XVFB_BIN="/usr/bin/Xvfb"
+```
+
 ### 状态文件报错
 
 查看：

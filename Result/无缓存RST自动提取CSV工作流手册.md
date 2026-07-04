@@ -285,6 +285,27 @@ Linux 上通常由 `ln -s` 完成。如果报 `Result link was not created`，�
 python -m rst2csv.cli mechanical-hpc-run Void.112.510 --component Setup
 ```
 
+### Cannot open X display
+
+如果 `workbench_stderr.log` 中出现：
+
+```text
+Cannot open X display "(not specified)".
+Fatal error: Unable to start the Mechanical editor.
+```
+
+说明 Workbench 已启动，但 Mechanical editor 在计算节点没有可用 X display。当前 Slurm 模板会自动启动 `Xvfb`：
+
+```bash
+which Xvfb
+```
+
+若没有输出，请联系 HPC 服务人员安装或加载 `Xvfb`，或在 `python1.slurm` 顶部设置：
+
+```bash
+XVFB_BIN="/usr/bin/Xvfb"
+```
+
 ### 状态和日志在哪里
 
 ```text
