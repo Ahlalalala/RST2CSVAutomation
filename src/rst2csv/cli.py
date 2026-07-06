@@ -258,18 +258,25 @@ def _run_fresh_workbench_case(
         workbench_component=workbench_component,
     )
     write_mechanical_batch_files(batch_config, paths.workbench_journal_path)
-    print(f"{case}: generated Workbench journal: {paths.workbench_journal_path}")
-    print(f"{case}: generated Mechanical script: {paths.mechanical_script_path}")
+    print(f"{case}: generated Workbench journal: {paths.workbench_journal_path}", flush=True)
+    print(f"{case}: generated Mechanical script: {paths.mechanical_script_path}", flush=True)
     if dry_run:
         if runwb2:
-            print(f"{case}: dry run command: {runwb2} -B -R {paths.workbench_journal_path}")
+            print(f"{case}: dry run command: {runwb2} -B -R {paths.workbench_journal_path}", flush=True)
         else:
-            print(f"{case}: dry run complete; set {config.HPC_RUNWB2_ENV_VAR} or pass --runwb2 before running.")
+            print(
+                f"{case}: dry run complete; set {config.HPC_RUNWB2_ENV_VAR} or pass --runwb2 before running.",
+                flush=True,
+            )
         return 0
 
     runwb2_path = find_runwb2(runwb2)
     _remove_stale_status(paths.mechanical_status_path)
+    print(f"{case}: starting Workbench batch: {runwb2_path}", flush=True)
+    print(f"{case}: Workbench stdout log: {paths.batch_dir / 'workbench_stdout.log'}", flush=True)
+    print(f"{case}: Workbench stderr log: {paths.batch_dir / 'workbench_stderr.log'}", flush=True)
     run_workbench_batch(runwb2_path, paths.workbench_journal_path, paths.batch_dir)
+    print(f"{case}: Workbench batch exited; waiting for Mechanical status", flush=True)
     _wait_for_mechanical_status(paths.mechanical_status_path, mechanical_timeout_seconds)
     _require_mechanical_status_ok(paths.mechanical_status_path)
     written = _export_exact_case(
@@ -279,8 +286,8 @@ def _run_fresh_workbench_case(
         output_dir=paths.output_dir,
     )
     zip_path = paths.zip_output_dir()
-    print(f"{case}: exported {len(written)} exact cached Mechanical files to {paths.output_dir}")
-    print(f"{case}: packaged {zip_path}")
+    print(f"{case}: exported {len(written)} exact cached Mechanical files to {paths.output_dir}", flush=True)
+    print(f"{case}: packaged {zip_path}", flush=True)
     return 0
 
 

@@ -290,9 +290,11 @@ def run_workbench_batch(
     log_path = Path(log_dir)
     log_path.mkdir(parents=True, exist_ok=True)
     command = [str(runwb2_path), "-B", "-R", str(journal_path)]
-    completed = subprocess.run(command, text=True, capture_output=True)
-    (log_path / "workbench_stdout.log").write_text(completed.stdout or "", encoding="utf-8", errors="replace")
-    (log_path / "workbench_stderr.log").write_text(completed.stderr or "", encoding="utf-8", errors="replace")
+    stdout_path = log_path / "workbench_stdout.log"
+    stderr_path = log_path / "workbench_stderr.log"
+    with stdout_path.open("w", encoding="utf-8", errors="replace") as stdout_stream:
+        with stderr_path.open("w", encoding="utf-8", errors="replace") as stderr_stream:
+            completed = subprocess.run(command, text=True, stdout=stdout_stream, stderr=stderr_stream)
     if completed.returncode != 0:
         raise RuntimeError("Workbench batch failed with exit code {}".format(completed.returncode))
     return completed

@@ -38,5 +38,29 @@ class VncScriptTests(unittest.TestCase):
         self.assertIn('source "${ANSYS_SETENV}"', env_block)
 
 
+class HpcMechanicalSlurmTests(unittest.TestCase):
+    def test_mechanical_slurm_allocates_multicore_task_for_workbench(self):
+        script = Path("scripts/rst2csv_mechanical.slurm")
+
+        text = script.read_text(encoding="utf-8")
+
+        self.assertIn("#SBATCH -c 32", text)
+        self.assertIn('export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-32}"', text)
+        self.assertIn('export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK:-32}"', text)
+
+    def test_mechanical_slurm_uses_strict_mode_without_breaking_vendor_env_scripts(self):
+        script = Path("scripts/rst2csv_mechanical.slurm")
+
+        text = script.read_text(encoding="utf-8")
+
+        self.assertIn("set -euo pipefail", text)
+        env_block_match = re.search(r"set \+u(.*?)set -u", text, re.S)
+        self.assertIsNotNone(env_block_match)
+        env_block = env_block_match.group(1)
+        self.assertIn('source "${CONDA_SH}"', env_block)
+        self.assertIn('source "${INTEL_SETVARS}"', env_block)
+        self.assertIn('source "${ANSYS_SETENV}"', env_block)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -18,6 +18,48 @@ python -m rst2csv.cli hpc-run <case>
 Result/无缓存RST自动提取CSV工作流手册.md
 ```
 
+## 0. 远程仓库拉取与回滚确认
+
+当前推荐在 HPC 源码目录内直接通过 Git 更新：
+
+```bash
+cd /opt/phadcloud/lustre/home/phadcloud01z417972/Desktop/RST2CSVAutomation
+git fetch origin
+git status --short --branch
+```
+
+可拉取状态应满足：
+
+```text
+## codex/linux-hpc-workflow...origin/codex/linux-hpc-workflow
+```
+
+且没有被 Git 跟踪的本地修改。若有未跟踪的作业日志或临时文件，可以保留，不影响拉取；若有已修改的源码或脚本，先备份再继续。
+
+更新到最新远端版本：
+
+```bash
+git pull --ff-only origin codex/linux-hpc-workflow
+```
+
+如需回滚到本次 HPC 修复前的版本，可回到提交：
+
+```bash
+git checkout c13521c
+```
+
+如需回到本机 Workbench 自动提取工作流刚加入后的版本，可回到：
+
+```bash
+git checkout bbe7f4c
+```
+
+建议正式运行前记录当前提交号：
+
+```bash
+git rev-parse --short HEAD
+```
+
 ## 1. 基础目录
 
 默认基础路径：
@@ -104,11 +146,48 @@ CONDA_ENV="py310"
 RUNWB2_PATH="${RST2CSV_RUNWB2:-/home/software/ansys/2025R2/ansys_inc/v252/Framework/bin/Linux64/runwb2}"
 ```
 
+`scripts/rst2csv_mechanical.slurm` 默认申请 32 个 CPU：
+
+```bash
+#SBATCH -c 32
+```
+
+不要改回单核。该 fresh 工作流需要 Workbench/Mechanical 对 700 个探针生成缓存，单核会显著拉长运行时间，可能从本机验证的 30-40 分钟级别变成数小时级别。脚本会把 Slurm 分配的 CPU 数传给常见数值库：
+
+```bash
+OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-32}
+MKL_NUM_THREADS=${SLURM_CPUS_PER_TASK:-32}
+NUMEXPR_NUM_THREADS=${SLURM_CPUS_PER_TASK:-32}
+```
+
 提交 fresh 工程自动提取：
 
 ```bash
 sbatch python1.slurm Void.112.510
 ```
+
+提交后查看作业号：
+
+```bash
+squeue -u "$USER"
+```
+
+Slurm 标准输出和错误位于提交目录：
+
+```text
+rst2csv_<jobid>.out
+rst2csv_<jobid>.err
+```
+
+运行中可实时查看：
+
+```bash
+tail -f rst2csv_<jobid>.out
+tail -f CSVResult/<case>/_mechanical_batch/workbench_stdout.log
+tail -f CSVResult/<case>/_mechanical_batch/workbench_stderr.log
+```
+
+新版脚本会在 Workbench 仍运行时持续写入 `workbench_stdout.log` 和 `workbench_stderr.log`，不再等 Workbench 退出后才一次性生成日志。因此若作业运行两三个小时，应先用 `tail -f` 和 `squeue` 判断是仍在 Mechanical 内部计算、等待图形显示，还是已经报错。
 
 输出目录：
 
@@ -260,6 +339,26 @@ CSVResult/<case>/_mechanical_batch/mechanical_status.txt
 CSVResult/<case>/_mechanical_batch/workbench_stdout.log
 CSVResult/<case>/_mechanical_batch/workbench_stderr.log
 ```
+
+如果 `mechanical_status.txt` 长时间不存在，但 `workbench_stdout.log` 或 `workbench_stderr.log` 仍在增长，说明 Workbench/Mechanical 还没有执行到 Mechanical Python 写状态文件的阶段。继续观察日志中的最后一段输出。
+
+如果三个文件都长时间没有变化，先检查：
+
+```bash
+squeue -j <jobid>
+tail -n 80 rst2csv_<jobid>.out
+tail -n 80 rst2csv_<jobid>.err
+```
+
+重点确认：
+
+```text
+Using SLURM_CPUS_PER_TASK=32
+Using OMP_NUM_THREADS=32
+Using MKL_NUM_THREADS=32
+```
+
+如果显示为 `1` 或未显示这些行，说明运行的不是新版 32 核脚本，先按第 0 节更新远程仓库并重新复制 `scripts/rst2csv_mechanical.slurm`。
 
 ## 6. 已验证结论
 

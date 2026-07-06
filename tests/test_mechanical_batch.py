@@ -1,5 +1,8 @@
 import os
+import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -8,6 +11,7 @@ from rst2csv.mechanical_batch import (
     build_mechanical_export_script,
     build_workbench_journal,
     find_runwb2,
+    run_workbench_batch,
 )
 
 
@@ -67,6 +71,43 @@ class MechanicalBatchTests(unittest.TestCase):
                 find_runwb2(None, env={"RST2CSV_RUNWB2": str(env_path), "PATH": ""}),
                 env_path,
             )
+
+    def test_run_workbench_batch_streams_logs_while_process_is_running(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            journal = tmp_path / "fake_workbench.py"
+            journal.write_text(
+                "import sys, time\n"
+                "print('stdout before sleep', flush=True)\n"
+                "print('stderr before sleep', file=sys.stderr, flush=True)\n"
+                "time.sleep(3)\n",
+                encoding="utf-8",
+            )
+            log_dir = tmp_path / "logs"
+            result: dict[str, object] = {}
+
+            def run_batch() -> None:
+                result["completed"] = run_workbench_batch(sys.executable, journal, log_dir)
+
+            thread = threading.Thread(target=run_batch)
+            thread.start()
+            try:
+                stdout_log = log_dir / "workbench_stdout.log"
+                stderr_log = log_dir / "workbench_stderr.log"
+                deadline = time.monotonic() + 5
+                while time.monotonic() < deadline:
+                    stdout_text = stdout_log.read_text(encoding="utf-8") if stdout_log.exists() else ""
+                    stderr_text = stderr_log.read_text(encoding="utf-8") if stderr_log.exists() else ""
+                    if "stdout before sleep" in stdout_text and "stderr before sleep" in stderr_text:
+                        break
+                    time.sleep(0.05)
+
+                self.assertIn("stdout before sleep", stdout_log.read_text(encoding="utf-8"))
+                self.assertIn("stderr before sleep", stderr_log.read_text(encoding="utf-8"))
+                self.assertTrue(thread.is_alive())
+            finally:
+                thread.join(timeout=5)
+            self.assertIn("completed", result)
 
 
 if __name__ == "__main__":

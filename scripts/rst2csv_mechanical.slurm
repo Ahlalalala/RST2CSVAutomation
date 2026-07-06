@@ -4,10 +4,12 @@
 #SBATCH -J RST2CSV
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH -c 1
+#SBATCH -c 32
 #SBATCH -o rst2csv_%j.out
 #SBATCH -e rst2csv_%j.err
 #SBATCH --no-requeue
+
+set -euo pipefail
 
 # Edit this block when the HPC layout changes.
 BASE_DIR="/opt/phadcloud/lustre/home/phadcloud01z417972/Desktop"
@@ -33,12 +35,18 @@ fi
 # environment scripts such as Intel oneAPI setvars.sh.
 set --
 
+set +u
 source "${CONDA_SH}"
 conda activate "${CONDA_ENV}"
 PYTHON_BIN="$(command -v python)"
 
 source "${INTEL_SETVARS}"
 source "${ANSYS_SETENV}"
+set -u
+
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-32}"
+export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK:-32}"
+export NUMEXPR_NUM_THREADS="${SLURM_CPUS_PER_TASK:-32}"
 
 if [ -n "${VNC_DISPLAY}" ]; then
   export DISPLAY="${VNC_DISPLAY}"
@@ -66,6 +74,9 @@ if [ -z "${DISPLAY:-}" ]; then
 fi
 
 echo "Using DISPLAY=${DISPLAY}"
+echo "Using SLURM_CPUS_PER_TASK=${SLURM_CPUS_PER_TASK:-unset}"
+echo "Using OMP_NUM_THREADS=${OMP_NUM_THREADS}"
+echo "Using MKL_NUM_THREADS=${MKL_NUM_THREADS}"
 if [ -n "${XAUTHORITY:-}" ]; then
   echo "Using XAUTHORITY=${XAUTHORITY}"
 fi
